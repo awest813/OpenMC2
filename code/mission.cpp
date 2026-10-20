@@ -764,7 +764,7 @@ long Mission::render (void)
 {
 	if (active)
 	{
-		unsigned char tempAmbientLight[3];
+		unsigned char tempAmbientLight[3] = {0, 0, 0};
 		if (KillAmbientLight) {
 			tempAmbientLight[0] = eye->ambientRed;
 			tempAmbientLight[1] = eye->ambientGreen;

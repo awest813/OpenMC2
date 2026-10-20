@@ -1700,12 +1700,12 @@ char* File::getFilename (void)
 //---------------------------------------------------------------------------
 time_t File::getFileMTime (void)
 {
-	time_t mTime;
+	time_t mTime = 0;
 
-	if (isOpen())
+	// files inside a fast file have no handle of their own
+	struct _stat st;
+	if (isOpen() && handle != CLOSED_HANDLE_VALUE && handle != -1 && _fstat(handle,&st) == 0)
 	{
-		struct _stat st;
-		_fstat(handle,&st);
 		mTime = st.st_mtime;
 
 		//Time\Date Stamp is WAY out of line.

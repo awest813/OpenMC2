@@ -748,14 +748,14 @@ void ABLModule::resetOrderCallFlags (void) {
 
 void ABLModule::setOrderCallFlag (unsigned char dword, unsigned char bit) {
 
-	orderCallFlags[dword] |= (1 << bit);
+	orderCallFlags[dword] |= (1UL << bit);
 }
 
 //---------------------------------------------------------------------------
 
 void ABLModule::clearOrderCallFlag(unsigned char dword, unsigned char bit) {
 
-	orderCallFlags[dword] &= ((1 << bit) ^ 0xFFFFFFFF);
+	orderCallFlags[dword] &= ~(1UL << bit);
 }
 
 //---------------------------------------------------------------------------
