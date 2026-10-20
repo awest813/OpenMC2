@@ -182,6 +182,15 @@ noexcept
 {
     gos_Free(ptr);
 }
+// sized deallocation (C++14) must be replaced as well, otherwise the compiler may pair
+// our malloc-based operator new with the library's sized operator delete
+void operator delete(void* ptr, size_t)
+#ifndef PLATFORM_WINDOWS
+noexcept 
+#endif
+{
+    gos_Free(ptr);
+}
 
 void* __cdecl operator new[](size_t size, HGOSHEAP Heap)
 {

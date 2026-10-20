@@ -21,9 +21,15 @@ add_definitions(-DVIEWER=1)
 #add_definitions(-D_ARMOR)
 #add_definitions(-D_DEBUG)
 
-include_directories("./window" ${COMMON_INCLUDE_DIRS} "../mclib" "../gui" "../code" "../netlib")
+include_directories("./window" ${COMMON_INCLUDE_DIRS} "../mclib" "../gui" "../code")
 include_directories(${CMAKE_PREFIX_PATH}/include)
 
 add_executable(viewer ${VIEWER_SOURCES})
 target_link_libraries(viewer mclib gosfx mlr stuff gui gameos gameos_main windows ZLIB::ZLIB ${SDL2_LIBRARIES} GLEW::GLEW SDL2_mixer::SDL2_mixer ${ADDITIONAL_LIBS} OpenGL::GL)
 
+
+# viewer compiles a subset of game code; UBSan's vptr check would need RTTI of classes it doesn't link
+if(MC2_SANITIZE MATCHES "undefined")
+    target_compile_options(viewer PRIVATE -fno-sanitize=vptr)
+    target_link_options(viewer PRIVATE -fno-sanitize=vptr)
+endif()
