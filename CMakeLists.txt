@@ -9,6 +9,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 # comma or semicolon separated list, e.g. -DMC2_SANITIZE=address,undefined
 set(MC2_SANITIZE "" CACHE STRING "Sanitizers to enable (GCC/Clang only), e.g. address,undefined")
+option(MC2_BUILD_TESTS "Build the unit tests (run with ctest)" ON)
 
 include(CMakeToolsHelpers OPTIONAL)
 
@@ -224,3 +225,8 @@ add_subdirectory("./res" "./out/res")
 add_subdirectory("./data_tools" "./out/data_tools")
 add_subdirectory("./text_tool" "./out/text_tool")
 add_subdirectory("./Viewer" "./out/Viewer")
+
+if(MC2_BUILD_TESTS)
+    enable_testing()
+    add_subdirectory("./tests" "./out/tests")
+endif()

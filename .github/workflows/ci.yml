@@ -38,6 +38,9 @@ jobs:
       - name: Build
         run: cmake --build --preset relwithdebinfo
 
+      - name: Test
+        run: ctest --test-dir build/relwithdebinfo --output-on-failure
+
       - name: Collect binaries
         run: |
           mkdir -p dist
@@ -52,6 +55,30 @@ jobs:
           name: mc2-linux-${{ matrix.arch }}-${{ matrix.compiler }}
           path: dist/
           retention-days: 14
+
+  sanitizers:
+    name: Linux x64 ASan+UBSan tests
+    runs-on: ubuntu-24.04
+    env:
+      ASAN_OPTIONS: detect_leaks=1:abort_on_error=1
+      UBSAN_OPTIONS: print_stacktrace=1:halt_on_error=1
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            ninja-build libsdl2-dev libsdl2-mixer-dev libsdl2-ttf-dev libglew-dev zlib1g-dev
+
+      - name: Configure
+        run: cmake --preset asan
+
+      - name: Build tests
+        run: cmake --build --preset asan --target mc2_tests
+
+      - name: Test
+        run: ctest --test-dir build/asan --output-on-failure
 
   windows:
     name: Windows x64 MSVC
@@ -79,6 +106,9 @@ jobs:
 
       - name: Build
         run: cmake --build --preset windows-msvc-release -- /m
+
+      - name: Test
+        run: ctest --test-dir build/windows-msvc -C RelWithDebInfo --output-on-failure
 
       - name: Collect binaries
         shell: pwsh

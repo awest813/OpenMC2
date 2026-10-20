@@ -41,7 +41,8 @@ The plan below fixes these in that order, so that the project always stays shipp
 | 0.6 CI: Linux x64 GCC/Clang, Linux arm64, Windows MSVC | ✅ Done, all green |
 | 0.7 `MC2_SANITIZE` / `asan` preset | ✅ Done (also fixed the sized `operator delete` mismatch it exposed) |
 | 0.9 `-fsigned-char` on non-x86 | ✅ Done (plus portable replacements for x86 inline asm in `heap.cpp` / `rdtsc()`) |
-| 0.8 Unit-test target · 0.10 dead-file cleanup | ⏳ Next |
+| 0.8 Unit-test target (doctest + CTest, run in CI incl. an ASan+UBSan job) | ✅ Done. The tests found and fixed: `EString`/`ECharString`/`EWCharString` `operator+(String, Char)` infinite recursion, a `PriorityQueue::insert` heap overflow when full, a heap-name leak in `UserHeap::init` |
+| 0.10 Dead-file cleanup | ⏳ Next |
 
 ---
 

@@ -45,6 +45,11 @@ under `build/relwithdebinfo/out/` (`out/res/libmc2res_64.so`, `out/data_tools/`,
 Other presets: `debug`, `release`, and `asan` (Debug build with AddressSanitizer + UBSan).
 Run `cmake --list-presets` to see them all.
 
+Unit tests (in `tests/`) are built by default and run with:
+```
+ctest --test-dir build/relwithdebinfo --output-on-failure
+```
+
 Or manually:
 ```
 cd mc2
