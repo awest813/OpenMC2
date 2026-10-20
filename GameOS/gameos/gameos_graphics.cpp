@@ -1609,8 +1609,9 @@ void gosRenderer::beginFrame()
 void gosRenderer::endFrame()
 {
     // check for file changes every half second
+    // shader hot reload (stat()s every shader file) only when debugging
     static uint64_t last_check_time = timing::get_wall_time_ms();
-    if(timing::get_wall_time_ms() - last_check_time > 500)
+    if(gl_debug_enabled() && timing::get_wall_time_ms() - last_check_time > 500)
     {
         last_check_time = timing::get_wall_time_ms();
         for(int i=0; i< materialList_.size(); ++i)
@@ -2263,11 +2264,14 @@ bool gos_CreateRenderer(HGOSWINDOW win, int w, int h) {
         return false;
     }
 
-	glEnable(GL_DEBUG_OUTPUT);
-	glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
-	//glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 76, 1, "My debug group");
-	glDebugMessageControlARB(GL_DONT_CARE, GL_DONT_CARE, GL_DONT_CARE, 0, NULL, GL_TRUE);
-	glDebugMessageCallbackARB((GLDEBUGPROC)&OpenGLDebugLog, NULL);
+	// synchronous debug output stalls the driver: debug builds or MC2_GL_DEBUG=1 only
+	if (gl_debug_enabled()) {
+		glEnable(GL_DEBUG_OUTPUT);
+		glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
+		//glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, 76, 1, "My debug group");
+		glDebugMessageControlARB(GL_DONT_CARE, GL_DONT_CARE, GL_DONT_CARE, 0, NULL, GL_TRUE);
+		glDebugMessageCallbackARB((GLDEBUGPROC)&OpenGLDebugLog, NULL);
+	}
 
     SPEW(("GRAPHICS", "Status: Using GLEW %s\n", glewGetString(GLEW_VERSION)));
     //if ((!GLEW_ARB_vertex_program || !GLEW_ARB_fragment_program))

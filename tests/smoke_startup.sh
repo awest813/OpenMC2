@@ -17,7 +17,8 @@ cp -r "$SRC_DIR/shaders" "$RUN_DIR/"
 cp "$2" "$RUN_DIR/"
 
 cd "$RUN_DIR"
-HOME="$RUN_DIR" timeout 60 xvfb-run -a -s "-screen 0 1280x1024x24" "$MC2" > startup.log 2>&1
+# GL debug output (and glGetError checks) on, so GL errors show up in the log
+HOME="$RUN_DIR" MC2_GL_DEBUG=1 timeout 60 xvfb-run -a -s "-screen 0 1280x1024x24" "$MC2" > startup.log 2>&1
 status=$?
 
 fail() { echo "SMOKE TEST FAILED: $1"; echo "----- log -----"; cat startup.log; exit 1; }

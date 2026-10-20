@@ -9,6 +9,7 @@
 #include <GL/glew.h>
 #include <GL/gl.h>
 #include "utils/logging.h"
+#include "utils/gl_utils.h"
 
 // FIXME: think how to make it better when different parts need window
 SDL_Window* g_sdl_window = NULL;
@@ -114,7 +115,8 @@ RenderWindow* create_window(
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 4);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 2);
 
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, SDL_GL_CONTEXT_DEBUG_FLAG);
+    // a debug context is slower: only when debugging GL (debug builds or MC2_GL_DEBUG=1)
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, gl_debug_enabled() ? SDL_GL_CONTEXT_DEBUG_FLAG : 0);
 	//SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, GL_CONTEXT_FLAG_DEBUG_BIT);
 
     // some defaults just to shut up static analyzer

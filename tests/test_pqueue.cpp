@@ -132,3 +132,50 @@ TEST_CASE("PriorityQueue: insert fails instead of overflowing when full")
     }
     CHECK(pq.isEmpty());
 }
+
+TEST_CASE("PriorityQueue: find stays consistent with the heap through random operations")
+{
+    PriorityQueue pq;
+    REQUIRE(pq.init(2000) == 0);
+
+    uint32_t x = 12345;
+    auto rnd = [&x]() { x ^= x << 13; x ^= x >> 17; x ^= x << 5; return x; };
+
+    std::vector<uint32_t> in_queue;
+    uint32_t next_id = 1;
+    for (int step = 0; step < 20000; ++step) {
+        const uint32_t op = rnd() % 10;
+        if (op < 4 && pq.getNumItems() < 1500) {
+            PQNode node = make_node((int32_t)(rnd() % 100000), next_id);
+            REQUIRE(pq.insert(node) == 0);
+            in_queue.push_back(next_id++);
+        } else if (op < 8 && !in_queue.empty()) {
+            // decrease/increase key of a random queued item, the way A* does it
+            const uint32_t id = in_queue[rnd() % in_queue.size()];
+            const int index = pq.find(id);
+            REQUIRE(index != 0);
+            REQUIRE(pq.getItem(index)->id == id);
+            pq.change(index, (int32_t)(rnd() % 100000));
+        } else if (!pq.isEmpty()) {
+            PQNode top;
+            const int32_t min_key = pq.getItem(1)->key;
+            pq.remove(top);
+            CHECK(top.key == min_key);
+            in_queue.erase(std::find(in_queue.begin(), in_queue.end(), top.id));
+            CHECK(pq.find(top.id) == 0);
+        }
+
+        if (step % 500 == 0) {
+            // every queued id is found where it really is, and the heap property holds
+            REQUIRE(pq.getNumItems() == (int)in_queue.size());
+            for (int i = 1; i <= pq.getNumItems(); ++i) {
+                CHECK(pq.find(pq.getItem(i)->id) == i);
+                if (i > 1)
+                    CHECK(pq.getItem(i / 2)->key <= pq.getItem(i)->key);
+            }
+        }
+    }
+
+    pq.clear();
+    CHECK(pq.find(in_queue.empty() ? 1 : in_queue[0]) == 0);
+}

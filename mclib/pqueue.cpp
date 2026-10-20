@@ -41,6 +41,8 @@ int PriorityQueue::init (int max, int keyMinValue) {
 	// execution speed)...
 	maxItems = max + 2;
 	keyMin = keyMinValue;
+	indexOf.clear();
+	indexOf.reserve(max + 2);
 	return(0);
 }
 
@@ -56,10 +58,10 @@ void PriorityQueue::upHeap (int curIndex) {
 	//--------------------
 	// sort up the heap...
 	while (pqList[curIndex/2].key >= stopKey) {
-		pqList[curIndex] = pqList[curIndex/2];
+		place(curIndex, pqList[curIndex/2]);
 		curIndex /= 2;
 	}
-	pqList[curIndex] = startNode;
+	place(curIndex, startNode);
 }
 
 //---------------------------------------------------------------------------
@@ -70,7 +72,8 @@ int PriorityQueue::insert (PQNode& item) {
 	if (numItems + 1 >= maxItems)
 		return(1);
 
-	pqList[++numItems] = item;
+	gosASSERT(indexOf.find(item.id) == indexOf.end());	// ids in the queue are unique
+	place(++numItems, item);
 	upHeap(numItems);
 	return(0);
 }
@@ -92,10 +95,10 @@ void PriorityQueue::downHeap (int curIndex) {
 			nextIndex++;
 		if (stopKey <= pqList[nextIndex].key)
 			break;
-		pqList[curIndex] = pqList[nextIndex];
+		place(curIndex, pqList[nextIndex]);
 		curIndex = nextIndex;
 	}
-	pqList[curIndex] = startNode;
+	place(curIndex, startNode);
 }
 
 //---------------------------------------------------------------------------
@@ -103,8 +106,13 @@ void PriorityQueue::downHeap (int curIndex) {
 void PriorityQueue::remove (PQNode& item) {
 
 	item = pqList[1];
-	pqList[1] = pqList[numItems--];
-	downHeap(1);
+	indexOf.erase(item.id);
+	if (numItems > 1) {
+		pqList[1] = pqList[numItems--];
+		downHeap(1);
+	}
+	else
+		numItems--;
 }
 
 //---------------------------------------------------------------------------
@@ -125,12 +133,9 @@ void PriorityQueue::change (int itemIndex, int newValue) {
 
 int PriorityQueue::find (unsigned int id) {
 
-	for (int index = 0; index <= numItems; index++)
-		if (pqList[index].id == id)
-        {
-			return(index);
-        }
-	return(0);
+	// 0 = not found (index 0 is the sentinel)
+	std::unordered_map<uint32_t, int>::const_iterator it = indexOf.find(id);
+	return (it != indexOf.end()) ? it->second : 0;
 }
 
 //---------------------------------------------------------------------------
@@ -169,6 +174,7 @@ void PriorityQueue::destroy (void) {
 	pqList = NULL;
 	maxItems = 0;
 	numItems = 0;
+	indexOf.clear();
 }
 
 //***************************************************************************
