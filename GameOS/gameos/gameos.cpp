@@ -82,7 +82,7 @@ __int64 __stdcall GetCycles()
 #else
     struct timespec ts;
     clock_gettime(CLOCK_MONOTONIC_RAW, &ts);
-    int64_t v = ts.tv_sec * 1e+9;
+    int64_t v = (int64_t)ts.tv_sec * 1000000000;
     v += ts.tv_nsec;
     return v;
 #endif
@@ -107,13 +107,16 @@ double __stdcall gos_GetElapsedTime( int RealTime )
 
 double __stdcall gos_GetHiResTime()
 {
-#ifdef PLATFORM_LINUX
+#ifndef PLATFORM_WINDOWS
     struct timespec ts;
     clock_gettime(CLOCK_MONOTONIC_RAW, &ts);
-    double time_sec = ts.tv_sec + ((double)ts.tv_nsec)/10.0e+9;
+    double time_sec = ts.tv_sec + ((double)ts.tv_nsec)/1.0e+9;
     return time_sec;
 #else
-	return ((double)timeGetTime()) * 0.001;
+	LARGE_INTEGER frequency, counter;
+	QueryPerformanceFrequency(&frequency);
+	QueryPerformanceCounter(&counter);
+	return (double)counter.QuadPart / (double)frequency.QuadPart;
 #endif
 }
 

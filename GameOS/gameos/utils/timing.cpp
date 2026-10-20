@@ -33,9 +33,10 @@ namespace timing {
 #ifdef PLATFORM_WINDOWS
 		Sleep(nanosec / 1000000);
 #else
+		// tv_nsec must be below one second
 		timespec ts;
-		ts.tv_sec = 0;
-		ts.tv_nsec = nanosec;
+		ts.tv_sec = nanosec / 1000000000u;
+		ts.tv_nsec = nanosec % 1000000000u;
 		nanosleep(&ts, NULL);
 #endif
 	}
@@ -49,7 +50,7 @@ namespace timing {
 #else
 		struct timespec ts;
 		clock_gettime(CLOCK_MONOTONIC_RAW, &ts);
-		uint64_t nanosec = (uint64_t)ts.tv_sec * 1e+9 + ts.tv_nsec;
+		uint64_t nanosec = (uint64_t)ts.tv_sec * 1000000000u + ts.tv_nsec;
 		return nanosec;
 #endif
 	}
@@ -61,7 +62,7 @@ namespace timing {
 #endif
 #ifdef PLATFORM_WINDOWS
 		double dt = (double)(ticks) / Frequency.QuadPart;
-		return 1000 * ticks;
+		return 1000 * dt;
 #else
 		return (double)ticks / 1e+6;
 #endif
@@ -84,8 +85,8 @@ namespace timing {
         // or clock_gettime(CLOCKREALTIME, ts);
         struct timespec ts;
         timespec_get(&ts, TIME_UTC);
-		size_t milliseconds = ts.tv_sec * 1e+3;
-		milliseconds += ts.tv_nsec / 1e+6;
+		uint64_t milliseconds = (uint64_t)ts.tv_sec * 1000u;
+		milliseconds += ts.tv_nsec / 1000000;
         return milliseconds;
     }
 }
