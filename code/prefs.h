@@ -10,6 +10,14 @@
 #endif
 
 
+// options.cfg and orgprefs.cfg are kept in the user data directory (next to the save games), not in
+// the install directory, which may be read-only or shared. initUserPrefsPaths() sets these up and
+// copies the files over from the install directory the first time.
+extern char UserPrefsDir[];			// ends with a path separator
+extern char UserOptionsPath[];		// options.cfg
+extern char UserOrgPrefsPath[];		// orgprefs.cfg
+void initUserPrefsPaths();
+
 class CPrefs {
 public:
 	CPrefs();

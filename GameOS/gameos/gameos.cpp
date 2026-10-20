@@ -465,7 +465,7 @@ void __stdcall gos_LoadDataFromRegistry( const char* keyName, void* pData, DWORD
 
     // if directory does not exist create it
 #ifndef PLATFORM_WINDOWS
-    int permissions = S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH;
+    int permissions = S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH; // 0755, before umask
 #endif
 	if(-1 == stat(mc2_conf_dir, &st)) {
 #ifdef PLATFORM_WINDOWS
@@ -486,11 +486,12 @@ void __stdcall gos_LoadDataFromRegistry( const char* keyName, void* pData, DWORD
     // check if reg file exists
     if(-1 == stat(reg_file, &st)) {
         *szData = 0;
-        return;
     } else {
         *szData = 0;
         // open file and read value
     }
+    delete[] reg_file;
+    delete[] mc2_conf_dir;
 }
 
 void __stdcall gos_SaveDataToRegistry( const char* keyName,  void* pData,  DWORD szData )
@@ -549,7 +550,7 @@ bool __stdcall gos_GetUserDataDirectory(char* user_dir, const int len)
 
     // if directory does not exist create it
 #ifndef PLATFORM_WINDOWS
-	int permissions = S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH | S_IXUSR | S_IXGRP;      
+    int permissions = S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH; // 0755, before umask
 #endif
 
     if(-1 == stat(mc2_conf_dir, &st)) {

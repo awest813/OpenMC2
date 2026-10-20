@@ -53,6 +53,114 @@ TEST_CASE("File: Windows style paths from data files are converted and lowercase
     f.close();
 }
 
+#ifndef _WIN32
+namespace {
+
+void write_text(const char* path, const char* text)
+{
+    std::ofstream out(path, std::ios::binary);
+    out << text;
+}
+
+std::string read_all(File& f)
+{
+    std::string s(f.fileSize(), '\0');
+    f.read((MemoryPtr)&s[0], (long)s.size());
+    return s;
+}
+
+} // namespace
+
+TEST_CASE("resolvePathCase: finds mixed case files and directories")
+{
+    fs::create_directories("CaseDir/MixedSub");
+    write_text("CaseDir/MixedSub/Data.FIT", "x");
+
+    char out[256];
+    CHECK(resolvePathCase("casedir/mixedsub/data.fit", out, sizeof(out)));
+    CHECK(std::string(out) == "CaseDir/MixedSub/Data.FIT");
+
+    CHECK(resolvePathCase("CASEDIR//MIXEDSUB/DATA.fit", out, sizeof(out)));
+    CHECK(std::string(out) == "CaseDir//MixedSub/Data.FIT");
+
+    // absolute paths
+    const std::string abs = fs::absolute("casedir/mixedsub/data.fit").string();
+    const std::string expected = fs::absolute("CaseDir/MixedSub/Data.FIT").string();
+    CHECK(resolvePathCase(abs.c_str(), out, sizeof(out)));
+    CHECK(std::string(out) == expected);
+
+    // a missing file: the directories are resolved, the rest is left as written
+    CHECK_FALSE(resolvePathCase("casedir/MIXEDSUB/New.fit", out, sizeof(out)));
+    CHECK(std::string(out) == "CaseDir/MixedSub/New.fit");
+    CHECK_FALSE(resolvePathCase("nosuchdir/MixedSub", out, sizeof(out)));
+    CHECK(std::string(out) == "nosuchdir/MixedSub");
+
+    // the output buffer is too small
+    char tiny[4];
+    CHECK_FALSE(resolvePathCase("casedir/mixedsub/data.fit", tiny, sizeof(tiny)));
+}
+
+TEST_CASE("resolvePathCase: picks the same match whatever the directory order")
+{
+    fs::create_directories("dupcase");
+    write_text("dupcase/b.txt", "lower");
+    write_text("dupcase/B.txt", "upper");
+
+    char out[256];
+    CHECK(resolvePathCase("DUPCASE/b.TXT", out, sizeof(out)));
+    CHECK(std::string(out) == "dupcase/B.txt"); // 'B' < 'b'
+}
+
+TEST_CASE("File: opens files whose case differs from the name asked for")
+{
+    // e.g. save games named by the player, or a home directory with capitals
+    fs::create_directories("UserHome/SaveGame");
+    write_text("UserHome/SaveGame/My Save.fit", "saved");
+
+    File f;
+    REQUIRE(f.open("UserHome/SaveGame/My Save.fit") == NO_ERR);
+    CHECK(read_all(f) == "saved");
+    f.close();
+
+    File g;
+    REQUIRE(g.open("userhome\\savegame\\MY SAVE.FIT") == NO_ERR);
+    CHECK(read_all(g) == "saved");
+    g.close();
+
+    File missing;
+    CHECK(missing.open("UserHome/SaveGame/none.fit") != NO_ERR);
+}
+
+TEST_CASE("File: create keeps the case of existing directories and files")
+{
+    fs::create_directories("CreateHome/Cfg");
+
+    {
+        // a new file goes into the existing directory, named in lowercase as before
+        File f;
+        REQUIRE(f.create("CreateHome/Cfg/Options.CFG") == NO_ERR);
+        f.write((MemoryPtr)"one", 3);
+        f.close();
+    }
+    CHECK(fs::exists("CreateHome/Cfg/options.cfg"));
+    CHECK_FALSE(fs::exists("createhome"));
+
+    {
+        // an existing file is overwritten rather than shadowed by a lowercase copy
+        write_text("CreateHome/Cfg/Keep.cfg", "old");
+        File f;
+        REQUIRE(f.create("createhome/cfg/keep.cfg") == NO_ERR);
+        f.write((MemoryPtr)"new", 3);
+        f.close();
+        CHECK_FALSE(fs::exists("CreateHome/Cfg/keep.cfg"));
+        File r;
+        REQUIRE(r.open("CreateHome/Cfg/Keep.cfg") == NO_ERR);
+        CHECK(read_all(r) == "new");
+        r.close();
+    }
+}
+#endif
+
 TEST_CASE("PacketFile: raw, zlib and empty packets round-trip")
 {
     const std::vector<unsigned char> raw = test_utils::random_bytes(3000, 1);

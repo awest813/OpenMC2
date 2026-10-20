@@ -57,6 +57,12 @@
 
 #include "platform_str.h"
 
+#ifndef PLATFORM_WINDOWS
+#include<dirent.h>
+#include<strings.h>
+#include<sys/stat.h>
+#endif
+
 //-----------------
 // Static Variables
 unsigned long File::lastError = NO_ERR;
@@ -118,6 +124,87 @@ long fileExistsOnCD (const char* fName)
 	}
 
 	return 0;
+}
+
+//---------------------------------------------------------------------------
+bool resolvePathCase (const char* path, char* out, size_t outSize)
+{
+	const size_t len = strlen(path);
+	if (len + 1 > outSize)
+	{
+		if (outSize)
+			out[0] = '\0';
+		return false;
+	}
+	memcpy(out, path, len + 1);
+
+#ifdef PLATFORM_WINDOWS
+	struct _stat winSt;
+	return _stat(path, &winSt) == 0;
+#else
+	struct stat st;
+	if (stat(out, &st) == 0)
+		return true;
+
+	// out[0..pos) is the resolved prefix, ending in '/' (or empty for relative paths)
+	size_t pos = 0;
+	while (pos < len && out[pos] == '/')
+		pos++;
+
+	while (pos < len)
+	{
+		size_t end = pos;
+		while (end < len && out[end] != '/')
+			end++;
+		const char saved = out[end];
+		out[end] = '\0';
+
+		if (stat(out, &st) != 0)
+		{
+			// look for the component in its directory, ignoring case; take the smallest
+			// match so that the result does not depend on directory order
+			char* dirPath = out;
+			char* name = out + pos;
+			char dirSaved = 0;
+			if (pos > 0)
+			{
+				dirSaved = out[pos - 1];
+				out[pos - 1] = '\0';
+			}
+			DIR* dir = opendir(pos == 0 ? "." : (pos == 1 ? "/" : dirPath));
+			if (pos > 0)
+				out[pos - 1] = dirSaved;
+
+			char best[256] = {0};
+			if (dir)
+			{
+				const size_t nameLen = end - pos;
+				while (struct dirent* entry = readdir(dir))
+				{
+					if (strlen(entry->d_name) == nameLen && strcasecmp(entry->d_name, name) == 0 &&
+						(best[0] == '\0' || strcmp(entry->d_name, best) < 0) && nameLen < sizeof(best))
+					{
+						memcpy(best, entry->d_name, nameLen + 1);
+					}
+				}
+				closedir(dir);
+			}
+
+			if (best[0] == '\0')
+			{
+				out[end] = saved;
+				return false;
+			}
+			memcpy(name, best, end - pos);
+		}
+
+		out[end] = saved;
+		pos = end;
+		while (pos < len && out[pos] == '/')
+			pos++;
+	}
+	return true;
+#endif
 }
 
 //---------------------------------------------------------------------------
@@ -238,11 +325,29 @@ long File::open (const char* fName, FileMode _mode, long numChild, bool doNotLow
 	fileMode = _mode;
 	//_fmode = _O_BINARY;
 
+#ifndef PLATFORM_WINDOWS
+	// the path as written, for looking it up ignoring case if the lowercase one does not exist
+	char* writtenName = (char *)systemHeap->Malloc(fNameLength+1);
+	gosASSERT(writtenName != NULL);
+	memcpy(writtenName, fileName, fNameLength+1);
+#endif
+
     if(!doNotLower)
 	    S_strlwr(fileName);
 
 	if (fileMode == CREATE)
 	{
+#ifndef PLATFORM_WINDOWS
+		// Keep the case of existing directories (e.g. a home directory with capitals) and of an
+		// existing file; a new file is named as before (lowercase unless doNotLower).
+		if (!resolvePathCase(writtenName, fileName, fNameLength+1) && !doNotLower)
+		{
+			char* lastSlash = strrchr(fileName, '/');
+			S_strlwr(lastSlash ? lastSlash + 1 : fileName);
+		}
+		systemHeap->Free(writtenName);
+		writtenName = NULL;
+#endif
 		// sebi: changed _creat to this, because otherwise non binary file is created which is wrong
 		handle = _open(fileName, _O_CREAT | _O_TRUNC | _O_BINARY | _O_RDWR, _S_IREAD | _S_IWRITE);
 		if (handle == INVALID_HANDLE_VALUE)
@@ -258,6 +363,24 @@ long File::open (const char* fName, FileMode _mode, long numChild, bool doNotLow
 		//----------------------------------------------------------------
 		//-- First, see if file is in normal place.  Useful for patches!!
 		handle = _open(fileName,_O_RDONLY | _O_BINARY);
+
+#ifndef PLATFORM_WINDOWS
+		//-- Then on disk in whatever case it has (mixed case data, saves, home directories)
+		if (handle == INVALID_HANDLE_VALUE)
+		{
+			char* resolvedName = (char *)systemHeap->Malloc(fNameLength+1);
+			gosASSERT(resolvedName != NULL);
+			if (resolvePathCase(writtenName, resolvedName, fNameLength+1))
+			{
+				handle = _open(resolvedName,_O_RDONLY | _O_BINARY);
+				if (handle != INVALID_HANDLE_VALUE)
+					memcpy(fileName, resolvedName, fNameLength+1);
+			}
+			systemHeap->Free(resolvedName);
+		}
+		systemHeap->Free(writtenName);
+		writtenName = NULL;
+#endif
 
 		//------------------------------------------
 		//-- Next, see if file is in fastFile.
