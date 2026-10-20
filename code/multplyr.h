@@ -1587,7 +1587,9 @@ class MultiPlayer {
 		void initSpecialBuildings (char commandersToLoad[8][3]);
 
 		char* getPlayerName (void) {
-			return(NULL);
+			// callers print it with %s, never return NULL
+			MC2Player* info = getPlayerInfo(commanderID);
+			return(info ? info->name : (char*)"");
 		}
 
 		void addToLocalMovers (MoverPtr mover);

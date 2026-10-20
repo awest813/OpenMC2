@@ -1808,7 +1808,8 @@ void LogisticsMapInfoDialog::setMap( const char* pFileName )
 			cLoadString( IDS_MP_LM_MAP_LIST_MAP_NAME, text, 255 );
 			sprintf( text2, text, missionName );
 
-			sprintf( totalText, text2 );
+			// text2 contains the mission name from the data files, it must not be used as a format string
+			strcpy( totalText, text2 );
 			strcat( totalText, "\n" );
 
 				unsigned long type = 0;
