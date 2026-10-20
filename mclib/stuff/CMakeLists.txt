@@ -85,5 +85,4 @@ include_directories(${COMMON_INCLUDE_DIRS})
 
 add_library(stuff ${SOURCES})
 
-# cat MCLib.vcproj | grep ".cpp" | perl -pe 's/.+\"(\w+\.cpp)\".+/\1/g' >> CMakeLists.txt
 

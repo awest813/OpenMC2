@@ -27,6 +27,5 @@ include_directories(${COMMON_INCLUDE_DIRS} "../../mclib")
 
 add_library(gosfx ${SOURCES})
 
-# cat gosFX.vcproj | grep ".cpp" | perl -pe 's/.+\"(\w+\.cpp)\".+/\1/g' >> CMakeLists.txt
 
 

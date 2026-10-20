@@ -42,7 +42,7 @@ The plan below fixes these in that order, so that the project always stays shipp
 | 0.7 `MC2_SANITIZE` / `asan` preset | ✅ Done (also fixed the sized `operator delete` mismatch it exposed) |
 | 0.9 `-fsigned-char` on non-x86 | ✅ Done (plus portable replacements for x86 inline asm in `heap.cpp` / `rdtsc()`) |
 | 0.8 Unit-test target (doctest + CTest, run in CI incl. an ASan+UBSan job) | ✅ Done. The tests found and fixed: `EString`/`ECharString`/`EWCharString` `operator+(String, Char)` infinite recursion, a `PriorityQueue::insert` heap overflow when full, a heap-name leak in `UserHeap::init` |
-| 0.10 Dead-file cleanup | ⏳ Next |
+| 0.10 Dead-file cleanup | ✅ Done: 45 files / ~30k lines (unbuilt sources and their headers, `.vcproj`/`.rc`/`.aps`, duplicate `GameDebugWindow`). `ARM/` is kept because `msl.cpp` and `aseconv` use it |
 
 ---
 
@@ -164,8 +164,8 @@ which is the source of the "memory leaks" TODO. Global `new`/`delete` are overri
 - Networking: `multplyr.cpp` is entirely stubs, but there are ~218 `if (MPlayer)` branches and 9 MP screens.
 - 37 `USE_ASSEMBLER_CODE`/`_asm` blocks (205 asm sites).
 - Unbuilt files: `code/actor.cpp`, `debugging.cpp`, `fastshp.cpp`, `logmain.cpp`, `mpaddaiplayer.cpp`, `mpdirecttcpip.cpp`,
-  `vfxshape.cpp`; `mclib/llist.cpp`, `tglpp.cpp`, 7 `mlr` files, `stuff/extentpoly.cpp`, `gui/aanimobject.cpp`.
-- A duplicate `GameDebugWindow` lives in `code/debugging.h`. `ARM/Microsoft.Xna.Arm.h` is a leftover.
+  `vfxshape.cpp`; `mclib/llist.cpp`, `tglpp.cpp`, 7 `mlr` files, `stuff/extentpoly.cpp`, `stuff/filestreammanager_test.cpp`.
+- A duplicate `GameDebugWindow` lives in `code/debugging.h`. `ARM/Microsoft.Xna.Arm.h` looks like a leftover, but `mclib/msl.cpp` and `data_tools/aseconv.cpp` use it.
 
 **Tests.** None run. `mclib/stuff/*_test.cpp` (26 files) are compiled but never invoked. There is no `enable_testing()`.
 
@@ -192,7 +192,7 @@ Guiding rules:
 | 0.7 | `-DMC2_SANITIZE=address,undefined` option | Run a mission under ASan/UBSan to seed the Phase 1 bug list. |
 | 0.8 | Wire up a unit-test target (doctest/Catch2 + CTest) | Start with: path conversion, `PriorityQueue`, `EString`, packet/fast-file readers, plus the existing `stuff` tests. |
 | 0.9 | Add `-fsigned-char` on non-x86 | Preserves x86 semantics on ARM until the code is audited. |
-| 0.10 | Delete stale `.vcproj`/`.aps`/`.rc`, unbuilt sources, `ARM/`, duplicate `GameDebugWindow` | Pure deletion. Verify the build still succeeds. |
+| 0.10 | Delete stale `.vcproj`/`.aps`/`.rc`, unbuilt sources, duplicate `GameDebugWindow` | Pure deletion. Verify the build still succeeds. |
 
 **Exit criteria:** green CI on 4 configurations. `mc2` builds on GCC 13+/Clang 17+/MSVC 2022 with zero errors and without `-fpermissive`.
 
