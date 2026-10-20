@@ -31,6 +31,20 @@ The plan below fixes these in that order, so that the project always stays shipp
 
 ---
 
+## Progress
+
+| Item | Status |
+|---|---|
+| 0.1 GCC 13 build blockers | ✅ Done |
+| 0.2 C++17 · 0.3 no `-fpermissive` · 0.4 warning flags, presets, `netlib` removed | ✅ Done |
+| 0.5 vcpkg manifest (Windows) | ✅ Done |
+| 0.6 CI: Linux x64 GCC/Clang, Linux arm64, Windows MSVC | ✅ Done, all green |
+| 0.7 `MC2_SANITIZE` / `asan` preset | ✅ Done (also fixed the sized `operator delete` mismatch it exposed) |
+| 0.9 `-fsigned-char` on non-x86 | ✅ Done (plus portable replacements for x86 inline asm in `heap.cpp` / `rdtsc()`) |
+| 0.8 Unit-test target · 0.10 dead-file cleanup | ⏳ Next |
+
+---
+
 ## 2. Audit findings
 
 ### 2.1 Build status (GCC 13.3, CMake 3.28, Ninja, RelWithDebInfo)
@@ -40,7 +54,7 @@ There are 681 warnings in total (472 `-Wformat`, 114 `-Wunused-variable`, 69 `-W
 
 | File | Error | Underlying bug |
 |---|---|---|
-| `data_tools/aseconv.cpp:352` | `MechAnimationNames[i]` for `i` in `25..26` | Out-of-bounds read on a `const char*[25]` (`MaxGestures`) |
+| `data_tools/aseconv.cpp:385` | `MechAnimationNames[i]` for `i` in `25..26` | `extern` declared the array with `MaxGestures` (25) entries, while the definition in `mech3d.cpp` has `MaxGestures+2` |
 | `code/mpstats.cpp:527` | `(TGAFileHeader*)MPlayer->insigniaList[id]` | `insigniaList` is `bool[]`; a bool is cast to a pointer and dereferenced |
 | `code/mpprefs.cpp:574-623` | `strcpy(pInfo->...)` | `MultiPlayer::getPlayerInfo()` is a stub returning `NULL`, so this is a guaranteed null dereference |
 
