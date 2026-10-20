@@ -49,15 +49,20 @@ CHECK_SIZE(TeamObjectInfo, 12);
 
 // save games
 CHECK_SIZE(GameObjectData, 372);
+#ifndef _WIN32
+// These embed WeaponShotInfo, which has 'long' members, so they are smaller on Windows (LLP64)
+// and save games with movers or weapon bolts are not portable between Linux and Windows builds
+// yet (see below). Checked on the LP64 platforms (Linux x64/arm64) to catch accidental changes.
 CHECK_SIZE(MoverData, 3128);
 CHECK_SIZE(MechData, 3928);
 CHECK_SIZE(GroundVehicleData, 3264);
+CHECK_SIZE(WeaponBoltData, 600);
+#endif
 CHECK_SIZE(TurretData, 820);
 CHECK_SIZE(BuildingData, 756);
 CHECK_SIZE(TerrainObjectData, 720);
 CHECK_SIZE(ArtilleryData, 432);
 CHECK_SIZE(CarnageData, 396);
-CHECK_SIZE(WeaponBoltData, 600);
 CHECK_SIZE(StaticMechWarriorData, 40);
 CHECK_SIZE(ObjectManagerData, 60);
 
