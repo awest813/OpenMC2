@@ -43,6 +43,16 @@ The plan below fixes these in that order, so that the project always stays shipp
 | 0.9 `-fsigned-char` on non-x86 | ✅ Done (plus portable replacements for x86 inline asm in `heap.cpp` / `rdtsc()`) |
 | 0.8 Unit-test target (doctest + CTest, run in CI incl. an ASan+UBSan job) | ✅ Done. The tests found and fixed: `EString`/`ECharString`/`EWCharString` `operator+(String, Char)` infinite recursion, a `PriorityQueue::insert` heap overflow when full, a heap-name leak in `UserHeap::init` |
 | 0.10 Dead-file cleanup | ✅ Done: 45 files / ~30k lines (unbuilt sources and their headers, `.vcproj`/`.rc`/`.aps`, duplicate `GameDebugWindow`). `ARM/` is kept because `msl.cpp` and `aseconv` use it |
+| **Phase 1** | |
+| 1.1 Renderer | ✅ `drawQuads` overrun, `gos_UpdateBuffer` offset, GL 4.2 context/GLSL check, unpack alignment, shader reload timer. Added a headless startup smoke test (Xvfb) to CI |
+| 1.2 Timing | ✅ hi-res timer (dead PLATFORM_LINUX branch, 1e10), `timeGetTime` overflow, `timing::sleep` ≥ 1 s, Windows `ticks2ms` |
+| 1.3 Audio | ✅ volume range (254 vs 128), panning read-back, resource freeing, `Mix_OpenAudio` failure |
+| 1.4 Input | ✅ full key table (F-keys/Return/Space/... were reported as Escape), right Ctrl/Shift/Alt, Alt (`KEY_LMENU`), clicks/taps between frames, accumulated mouse deltas |
+| 1.5 Files & shims | ✅ `READWRITE` was read-only, `gos_SeekFile` missing, file stubs implemented, CD retry hang, `FindFirstFile` size/time, `CopyFile` |
+| 1.6 Engine | ✅ pathfinding `change(door)`, ABL group NULL derefs, order flags, `getFileMTime`, special area packet size |
+| 1.7 Overflows & formats | ✅ 65 `-Wformat-overflow` sites, 433 printf length mismatches, plus bugs found on the way (infowindow `inventory[-1]`, Clang-only waypoint key bug, missing virtual dtor). Warnings 679 → 140 |
+| 1.8 Struct layout | ✅ `tests/test_struct_layout.cpp`: compile-time size checks for data file and save game structs on all CI platforms |
+| Open: save game layout | ⚠️ `TeamStaticData`, `TeamData`, `StaticCommanderData`, `CommanderData`, `GateData` are saved as raw bytes but contain `long` (8 bytes on Linux, 4 on Windows/original), `GateData` also a pointer. Making them `int32_t` makes saves portable but breaks existing Linux saves; needs a decision (or a versioned save format) |
 
 ---
 

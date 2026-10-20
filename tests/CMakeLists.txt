@@ -7,6 +7,7 @@ set(TEST_SOURCES
     test_platform.cpp
     test_pqueue.cpp
     test_strings.cpp
+    test_struct_layout.cpp
     test_timing.cpp
     test_stuff.cpp
     )
