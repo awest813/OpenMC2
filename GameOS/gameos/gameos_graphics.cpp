@@ -1612,6 +1612,7 @@ void gosRenderer::endFrame()
     static uint64_t last_check_time = timing::get_wall_time_ms();
     if(timing::get_wall_time_ms() - last_check_time > 500)
     {
+        last_check_time = timing::get_wall_time_ms();
         for(int i=0; i< materialList_.size(); ++i)
         {
             materialList_[i]->checkReload();
@@ -1714,15 +1715,16 @@ void gosRenderer::drawQuads(gos_VERTEX* vertices, int count) {
     } 
 
     gosASSERT(quads_->getNumVertices() + num_vertices <= quads_->getVertexCapacity());
-    for(int i=0; i<count;i+=4) {
+    // each quad (4 vertices) becomes 2 triangles
+    for(int i=0; i + 3 < count; i+=4) {
 
-        quads_->addVertices(vertices + 4*i + 0, 1);
-        quads_->addVertices(vertices + 4*i + 1, 1);
-        quads_->addVertices(vertices + 4*i + 2, 1);
+        quads_->addVertices(vertices + i + 0, 1);
+        quads_->addVertices(vertices + i + 1, 1);
+        quads_->addVertices(vertices + i + 2, 1);
 
-        quads_->addVertices(vertices + 4*i + 0, 1);
-        quads_->addVertices(vertices + 4*i + 2, 1);
-        quads_->addVertices(vertices + 4*i + 3, 1);
+        quads_->addVertices(vertices + i + 0, 1);
+        quads_->addVertices(vertices + i + 2, 1);
+        quads_->addVertices(vertices + i + 3, 1);
     }
 
     // for now draw anyway because no render state saved for draw calls
@@ -2252,6 +2254,8 @@ bool gos_CreateRenderer(HGOSWINDOW win, int w, int h) {
 
     graphics::make_current_context(ctx);
 
+    // needed by older GLEW versions to load core profile entry points
+    glewExperimental = GL_TRUE;
     GLenum err = glewInit();
     if (GLEW_OK != err)
     {
@@ -2272,8 +2276,9 @@ bool gos_CreateRenderer(HGOSWINDOW win, int w, int h) {
       //  return 1;
     //}
 
-    if(!glewIsSupported("GL_VERSION_3_0")) {
-        SPEW(("GRAPHICS", "Minimum required OpenGL version is 3.0\n"));
+    // shaders are compiled as GLSL 4.20 (they use layout(binding = N))
+    if(!glewIsSupported("GL_VERSION_4_2")) {
+        SPEW(("GRAPHICS", "Minimum required OpenGL version is 4.2, current: %s\n", (const char*)glGetString(GL_VERSION)));
         return false;
     }
 
@@ -2283,10 +2288,14 @@ bool gos_CreateRenderer(HGOSWINDOW win, int w, int h) {
     int glsl_maj = 0, glsl_min = 0;
     sscanf(glsl_version, "%d.%d", &glsl_maj, &glsl_min);
 
-    if(glsl_maj < 3 || (glsl_maj==3 && glsl_min < 30) ) {
-        SPEW(("GRAPHICS", "Minimum required OpenGL version is 330 ES, current: %d.%d\n", glsl_maj, glsl_min));
+    if(glsl_maj < 4 || (glsl_maj==4 && glsl_min < 20) ) {
+        SPEW(("GRAPHICS", "Minimum required GLSL version is 4.20, current: %d.%d\n", glsl_maj, glsl_min));
         return false;
     }
+
+    // texture data (e.g. single channel movie planes) is tightly packed, rows are not 4 byte aligned
+    glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+    glPixelStorei(GL_PACK_ALIGNMENT, 1);
 
     char version[16] = {0};
     snprintf(version, sizeof(version), "%d%d", glsl_maj, glsl_min);
@@ -2913,10 +2922,11 @@ void __stdcall gos_BindBufferBase(gosBuffer* buffer, uint32_t slot)
 void __stdcall gos_UpdateBuffer(HGOSBUFFER buffer, void* data, size_t offset, size_t num_bytes)
 {
 	gosASSERT(buffer);
-    gosASSERT(buffer->element_size_ * buffer->count_ >= num_bytes);
+    gosASSERT(buffer->element_size_ * buffer->count_ >= offset + num_bytes);
 	GLenum gl_target = getGLBufferType(buffer->type_);
     glBindBuffer(gl_target, buffer->buffer_);
-	glBufferData(gl_target, num_bytes, data, GL_DYNAMIC_DRAW);
+	// storage is allocated in gos_CreateBuffer, only update the requested range
+	glBufferSubData(gl_target, offset, num_bytes, data);
     glBindBuffer(gl_target, 0);
 }
 

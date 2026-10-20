@@ -110,8 +110,9 @@ RenderWindow* create_window(
     // COMPATIBILITY, ES,...
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
     //SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_COMPATIBILITY);
+    // 4.2 to match the GLSL version the shaders are compiled with (#version 420)
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 4);
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 0);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 2);
 
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, SDL_GL_CONTEXT_DEBUG_FLAG);
 	//SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, GL_CONTEXT_FLAG_DEBUG_BIT);
@@ -309,8 +310,8 @@ RenderContextHandle init_render_context(RenderWindowHandle render_window)
         printf("Vendor     : %s\n", glGetString(GL_VENDOR));
         printf("Renderer   : %s\n", glGetString(GL_RENDERER));
         printf("Version    : %s\n", glGetString(GL_VERSION));
-        const GLubyte* exts = glGetString(GL_EXTENSIONS);
-        printf("Extensions : %s\n", exts);
+        // glGetString(GL_EXTENSIONS) is not valid in a core profile context
+        printf("GLSL       : %s\n", glGetString(GL_SHADING_LANGUAGE_VERSION));
         printf("\n");
 
         int value;
