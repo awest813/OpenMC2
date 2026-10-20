@@ -46,15 +46,15 @@ typedef struct _SystemTracker {
 //---------------------------------------------------------------------------
 typedef struct _TeamData
 {
-	long 				id;
-	long 				rosterSize;
+	int32_t 				id;
+	int32_t 				rosterSize;
 	GameObjectWatchID	roster[MAX_MOVERS_PER_TEAM];
 } TeamData;
 
 typedef struct _TeamStaticData
 {
-	long		numTeams;
-	long		homeTeamId;
+	int32_t		numTeams;
+	int32_t		homeTeamId;
 	char		relations[MAX_TEAMS][MAX_TEAMS];
 	bool		noPain[MAX_TEAMS];
 } TeamStaticData;

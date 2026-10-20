@@ -267,19 +267,19 @@ typedef struct _MechAppearanceData
 	bool						prevStep;
 
 	float						velocity;
-	long						status;
-	long						sensorLevel;
+	int32_t						status;
+	int32_t						sensorLevel;
 
-	long						currentStateGoal;
-	long						currentGestureId;
-	long						transitionState;
-	long						oldStateGoal;
-	long						hitGestureId;			//What gesture should I go back to when hit?
+	int32_t						currentStateGoal;
+	int32_t						currentGestureId;
+	int32_t						transitionState;
+	int32_t						oldStateGoal;
+	int32_t						hitGestureId;			//What gesture should I go back to when hit?
 
 	float						currentFrame;			//One for each part.
-	long						currentLOD;
+	int32_t						currentLOD;
 
-	long						nodeUsed[10];				//Used to stagger the weapon nodes for firing.
+	int32_t						nodeUsed[10];				//Used to stagger the weapon nodes for firing.
 	float						nodeRecycle[10];			//Used for ripple fire to find out if the node has fired recently.
 
 	Stuff::Vector3D				jumpDestination;
@@ -287,7 +287,7 @@ typedef struct _MechAppearanceData
 
 	float						baseRootNodeHeight;
 
-	long						isSmoking;
+	int32_t						isSmoking;
 	bool						isWaking;
 	bool						isDusting;
 	bool						fallDust;

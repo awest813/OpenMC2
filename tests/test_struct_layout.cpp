@@ -28,6 +28,9 @@
 #include "bldng.h"
 #include "artlry.h"
 #include "gameobj.h"
+#include "team.h"
+#include "comndr.h"
+#include "gate.h"
 
 #define CHECK_SIZE(type, size) static_assert(sizeof(type) == size, "size of " #type " changed, see the comment at the top of test_struct_layout.cpp")
 
@@ -47,17 +50,12 @@ CHECK_SIZE(ObjData, 15);
 CHECK_SIZE(MiscObjectData, 16);
 CHECK_SIZE(TeamObjectInfo, 12);
 
-// save games
+// save games (code/savegame.cpp converts these from the layout older 64-bit Linux builds wrote)
 CHECK_SIZE(GameObjectData, 372);
-#ifndef _WIN32
-// These embed WeaponShotInfo, which has 'long' members, so they are smaller on Windows (LLP64)
-// and save games with movers or weapon bolts are not portable between Linux and Windows builds
-// yet (see below). Checked on the LP64 platforms (Linux x64/arm64) to catch accidental changes.
-CHECK_SIZE(MoverData, 3128);
-CHECK_SIZE(MechData, 3928);
-CHECK_SIZE(GroundVehicleData, 3264);
-CHECK_SIZE(WeaponBoltData, 600);
-#endif
+CHECK_SIZE(MoverData, 3000);
+CHECK_SIZE(MechData, 3704);
+CHECK_SIZE(GroundVehicleData, 3136);
+CHECK_SIZE(WeaponBoltData, 580);
 CHECK_SIZE(TurretData, 820);
 CHECK_SIZE(BuildingData, 756);
 CHECK_SIZE(TerrainObjectData, 720);
@@ -65,11 +63,11 @@ CHECK_SIZE(ArtilleryData, 432);
 CHECK_SIZE(CarnageData, 396);
 CHECK_SIZE(StaticMechWarriorData, 40);
 CHECK_SIZE(ObjectManagerData, 60);
-
-// Not checked yet: TeamStaticData, TeamData, StaticCommanderData, CommanderData and GateData are
-// also saved as raw bytes but contain 'long' members (8 bytes on Linux, 4 on Windows) and GateData
-// a pointer, so their save game layout differs between platforms. Fixing that changes the save
-// format; see MODERNIZATION.md.
+CHECK_SIZE(TeamData, 488);
+CHECK_SIZE(TeamStaticData, 80);
+CHECK_SIZE(StaticCommanderData, 8);
+CHECK_SIZE(CommanderData, 1288);
+CHECK_SIZE(GateData, 760);
 
 TEST_CASE("Struct layout: file format structures have their expected sizes")
 {

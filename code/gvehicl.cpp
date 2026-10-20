@@ -4332,7 +4332,7 @@ long GroundVehicle::handleWeaponHit (WeaponShotInfoPtr shotInfo, bool addMultipl
 		else
 			strcpy(attackerStr, "attacker?");
 		char err[128];
-		sprintf(err, "GVehicle.handleWeaponHit: [%s]%ld for %.2f at %ld",
+		sprintf(err, "GVehicle.handleWeaponHit: [%s]%d for %.2f at %d",
 			attackerStr,
 			shotInfo->masterId,
 			shotInfo->damage,

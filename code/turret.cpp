@@ -1273,7 +1273,7 @@ void Turret::printFireWeaponDebugInfo (GameObjectPtr target, Stuff::Vector3D* ta
 			CombatLog->write(s);
 			sprintf(s, "     chance = %03ld, roll = %03ld", chance, roll);
 			CombatLog->write(s);
-			sprintf(s, "     weapon = (%03ld)%s, hitLocation = (%ld)%s, damage = %.2f, angle = %.2f",
+			sprintf(s, "     weapon = (%03d)%s, hitLocation = (%d)%s, damage = %.2f, angle = %.2f",
 				shotInfo->masterId, MasterComponent::masterList[shotInfo->masterId].getName(),
 				shotInfo->hitLocation, (shotInfo->hitLocation > -1) ? locationStrings[shotInfo->hitLocation] : "none",
 				shotInfo->damage,
@@ -1292,7 +1292,7 @@ void Turret::printFireWeaponDebugInfo (GameObjectPtr target, Stuff::Vector3D* ta
 			CombatLog->write(s);
 			sprintf(s, "     chance = %03ld, roll = %03ld", chance, roll);
 			CombatLog->write(s);
-			sprintf(s, "     weapon = (%03ld)%s, hitLocation = (%ld)%s, damage = %.2f, angle = %.2f",
+			sprintf(s, "     weapon = (%03d)%s, hitLocation = (%d)%s, damage = %.2f, angle = %.2f",
 				shotInfo->masterId, MasterComponent::masterList[shotInfo->masterId].getName(),
 				shotInfo->hitLocation, (shotInfo->hitLocation > -1) ? locationStrings[shotInfo->hitLocation] : "none",
 				shotInfo->damage,
@@ -1342,7 +1342,7 @@ void Turret::printHandleWeaponHitDebugInfo (WeaponShotInfo* shotInfo) {
 	else
 		sprintf(s, "     attacker = (%05d)<unknown WID>", shotInfo->attackerWID);
 	CombatLog->write(s);
-	sprintf(s, "     weapon = (%03ld)%s, hitLocation = (%ld)%s, damage = %.2f, angle = %.2f",
+	sprintf(s, "     weapon = (%03d)%s, hitLocation = (%d)%s, damage = %.2f, angle = %.2f",
 		shotInfo->masterId, MasterComponent::masterList[shotInfo->masterId].getName(),
 		shotInfo->hitLocation, (shotInfo->hitLocation > -1) ? locationStrings[shotInfo->hitLocation] : "none",
 		shotInfo->damage,

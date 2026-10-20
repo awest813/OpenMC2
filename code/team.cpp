@@ -70,6 +70,8 @@
 #include"warrior.h"
 #endif
 
+#include"savegame.h"
+
 char Team::relations[MAX_TEAMS][MAX_TEAMS] = {
 	{0, 2, RELATION_NEUTRAL, 2, 2, 2, 2, 2},
 	{2, 0, 2, 2, 2, 2, 2, 2},
@@ -1326,7 +1328,7 @@ long Team::Load (PacketFilePtr file, long packetNum)
 {
 	TeamStaticData staticData;
 
-	file->readPacket(packetNum,(MemoryPtr)&staticData);
+	readSaveData(file, packetNum, SAVE_TeamStaticData, &staticData, sizeof(staticData));
 	packetNum++;
 
 	numTeams = staticData.numTeams;
@@ -1336,7 +1338,7 @@ long Team::Load (PacketFilePtr file, long packetNum)
 	for (long i=0;i<numTeams;i++)
 	{
 		TeamData data;
-		file->readPacket(packetNum,(MemoryPtr)&data);
+		readSaveData(file, packetNum, SAVE_TeamData, &data, sizeof(data));
 		packetNum++;
 
 		teams[i] = new Team;
