@@ -31,16 +31,35 @@ LPTSTR WINAPI CharLower(
 }
 */
 
-int MessageBoxA(HWND,LPCSTR header, LPCSTR message, UINT )
+// There is no dialog, so answer with the choice that does not wait for anything: Cancel/No when the
+// box offers it, OK otherwise. (Returning 0, which is no valid answer, made "insert the CD / retry"
+// loops that only stop on IDCANCEL spin forever.)
+static int default_message_box_answer(UINT type)
 {
-    printf("MSGBOX: %s : %s\n", header, message);
-    return 0;
+    switch(type & MB_TYPEMASK) {
+        case MB_OKCANCEL:
+        case MB_RETRYCANCEL:
+        case MB_YESNOCANCEL:
+            return IDCANCEL;
+        case MB_YESNO:
+            return IDNO;
+        case MB_ABORTRETRYIGNORE:
+            return IDABORT;
+        default:
+            return IDOK;
+    }
 }
 
-int MessageBoxW(HWND,LPCWSTR header, LPCWSTR message, UINT)
+int MessageBoxA(HWND,LPCSTR header, LPCSTR message, UINT type)
 {
-    printf("MSGBOX: %S : %S\n", header, message);
-    return 0;
+    fprintf(stderr, "MSGBOX: %s : %s\n", header, message);
+    return default_message_box_answer(type);
+}
+
+int MessageBoxW(HWND,LPCWSTR header, LPCWSTR message, UINT type)
+{
+    fprintf(stderr, "MSGBOX: %S : %S\n", header, message);
+    return default_message_box_answer(type);
 }
 
 LPSTR CharLowerA(LPSTR s)

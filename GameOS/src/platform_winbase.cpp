@@ -122,10 +122,11 @@ BOOL CopyFile(  LPCTSTR lpExistingFileName,
         struct stat file_info = {0};
         fstat(src, &file_info);
 
+        // like the Windows CopyFile, the copy keeps the source's timestamps
         struct utimbuf ut;
         ut.actime = file_info.st_atim.tv_sec;
         ut.modtime = file_info.st_mtim.tv_sec;
-        utime(lpExistingFileName, &ut);
+        utime(lpNewFileName, &ut);
     }
 
     close(src);
@@ -280,28 +281,20 @@ static void FillFindData(const char* dir_name, const char* entry_name, LPWIN32_F
         if(S_ISBLK(s.st_mode))
             lpFindFileData->dwFileAttributes = FILE_ATTRIBUTE_DEVICE;
 
-        // Contains a 64-bit value representing the number of 100-nanosecond intervals since January 1, 1601 (UTC).
-        uint64_t sec_since = 60*60*24*365*1601L; // well approximately
+        // FILETIME: number of 100-nanosecond intervals since January 1, 1601 (UTC)
+        auto to_filetime = [](const struct timespec& ts, FILETIME& ft) {
+            const uint64_t SECONDS_1601_TO_1970 = 11644473600ull;
+            uint64_t t = ((uint64_t)ts.tv_sec + SECONDS_1601_TO_1970) * 10000000ull + (uint64_t)ts.tv_nsec / 100;
+            ft.dwLowDateTime = (DWORD)(t & 0xffffffff);
+            ft.dwHighDateTime = (DWORD)(t >> 32);
+        };
+        to_filetime(s.st_atim, lpFindFileData->ftLastAccessTime);
+        // there is no creation time in struct stat, use the status change time
+        to_filetime(s.st_ctim, lpFindFileData->ftCreationTime);
+        to_filetime(s.st_mtim, lpFindFileData->ftLastWriteTime);
 
-        // all date setting is incorrect
-        uint64_t sec = s.st_atim.tv_sec - sec_since;
-        uint64_t nsec = sec*1e9 + s.st_atim.tv_sec;
-	    lpFindFileData->ftLastAccessTime.dwLowDateTime = (DWORD)nsec&0xffffffff;
-	    lpFindFileData->ftLastAccessTime.dwHighDateTime = (DWORD)(nsec>>32)&0xffffffff;
-
-        sec = s.st_ctim.tv_sec - sec_since;
-        nsec = sec*1e9 + s.st_ctim.tv_sec;
-	    lpFindFileData->ftCreationTime.dwLowDateTime = (DWORD)nsec&0xffffffff;
-	    lpFindFileData->ftCreationTime.dwHighDateTime = (DWORD)(nsec>>32)&0xffffffff;
-
-        sec = s.st_ctim.tv_sec - sec_since;
-        nsec = sec*1e9 + s.st_ctim.tv_sec;
-	    lpFindFileData->ftLastWriteTime.dwLowDateTime = (DWORD)nsec&0xffffffff;
-	    lpFindFileData->ftLastWriteTime.dwHighDateTime = (DWORD)(nsec>>32)&0xffffffff;
-
-        
-	    lpFindFileData->nFileSizeHigh = s.st_size&0xffffffff;
-	    lpFindFileData->nFileSizeLow = (s.st_size>>32)&0xffffffff;;
+	    lpFindFileData->nFileSizeHigh = (DWORD)(((uint64_t)s.st_size >> 32) & 0xffffffff);
+	    lpFindFileData->nFileSizeLow = (DWORD)((uint64_t)s.st_size & 0xffffffff);
 
         int copy_size = strlen(entry_name);
         copy_size = copy_size < MAX_PATH ? copy_size : MAX_PATH-1;

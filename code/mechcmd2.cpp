@@ -897,9 +897,14 @@ void __stdcall InitializeGameEngine()
 		char msg[2048];
 		cLoadString(IDS_GAME_HDSPACE_ERROR,title,255);
 		cLoadString(IDS_GAME_HDSPACE_MSG,msg,2047);
+#ifdef PLATFORM_WINDOWS
 		DWORD result = MessageBox(NULL,msg,title,MB_OKCANCEL | MB_ICONWARNING);
 		if (result == IDCANCEL)
 			ExitGameOS();
+#else
+		// the MessageBox shim can't ask, and would answer Cancel: just warn and carry on
+		SPEW(("GAME", "%s: %s\n", title, msg));
+#endif
 	}
 
     //sebi: we are probably NOT Voodoo 3 

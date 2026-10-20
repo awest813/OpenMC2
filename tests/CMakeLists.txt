@@ -4,6 +4,7 @@ set(TEST_SOURCES
     test_files.cpp
     test_input.cpp
     test_lz.cpp
+    test_platform.cpp
     test_pqueue.cpp
     test_strings.cpp
     test_timing.cpp
