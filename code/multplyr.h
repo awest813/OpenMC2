@@ -1509,7 +1509,9 @@ class MultiPlayer {
 		// for write purposes....
 		MC2Player* getPlayerInfo( long commanderID )
 		{
-			return NULL;
+			if (commanderID < 0 || commanderID >= MAX_MC_PLAYERS)
+				return NULL;
+			return &playerInfo[commanderID];
 		}
 
 		bool hostSession(char* sessionName, char* playerName, long mxPlayers);

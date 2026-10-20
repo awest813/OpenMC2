@@ -514,21 +514,12 @@ void MPStatsResultsEntry::setData(const MC2Player* data, unsigned long laurelCol
 		rects[7].setColor( 0 );
 	}
 
+	// insigniaList only flags whether an insignia was received; the image data itself is
+	// not kept in memory, so the insignia can only be shown if it exists on disk
 	if ( fileExists( path ) )
 	{
 		statics[0].setTexture( path );
 		statics[0].setUVs( 0, 0, 32, 32 );
-	}
-	else
-	{
-		TGAFileHeader*  pData = (TGAFileHeader*)MPlayer->insigniaList[data->commanderID];
-		if ( pData )
-		{
-			int size = pData->pixel_depth/8;
-			int ID = mcTextureManager->textureFromMemory( (DWORD*)(pData+1), gos_Texture_Solid, 0, pData->width, size  );
-			statics[0].setTexture( ID );
-			statics[0].setUVs( 0, 32, 32, 0 );
-		}
 	}
 
 

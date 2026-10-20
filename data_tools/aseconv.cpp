@@ -53,7 +53,7 @@ long		maxFastFiles = 0;
 
 HWND		appWnd = NULL;
 
-extern const char* MechAnimationNames[MaxGestures];
+extern const char* MechAnimationNames[MaxGestures+2];
 
 int ObjectTextureSize = 128;
 bool reloadBounds = false;
