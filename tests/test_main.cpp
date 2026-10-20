@@ -21,6 +21,10 @@ namespace fs = std::filesystem;
 
 int main(int argc, char** argv)
 {
+    // same setup order as the game (mechcmd2.cpp): heap list first, then the heaps
+    globalHeapList = new HeapList;
+    globalHeapList->init();
+
     systemHeap = new UserHeap();
     systemHeap->init(32 * 1024 * 1024, "SYSTEM");
 
@@ -41,8 +45,13 @@ int main(int argc, char** argv)
     std::error_code ec;
     fs::remove_all(scratch_dir, ec);
 
+    systemHeap->destroy();
     delete systemHeap;
     systemHeap = NULL;
+
+    globalHeapList->destroy();
+    delete globalHeapList;
+    globalHeapList = NULL;
 
     return result;
 }
