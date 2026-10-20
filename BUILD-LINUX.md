@@ -2,8 +2,10 @@
 
 Apt based distros:
 ```
-sudo apt install libsdl2-dev, libsdl2-mixer-dev, libsdl2-ttf-dev, libsdl2-mixer-dev, zlib1g-dev, libglew-dev
+sudo apt install cmake ninja-build libsdl2-dev libsdl2-mixer-dev libsdl2-ttf-dev zlib1g-dev libglew-dev
 ```
+
+A C++17 compiler is required (GCC 9+ or Clang 10+), and CMake 3.16+ (3.21+ to use presets).
 
 
 # Directory Setup
@@ -31,6 +33,19 @@ git clone https://github.com/alariq/mc2srcdata.git
 # Compiling
 
 ## Executable
+
+Using CMake presets (recommended):
+```
+cd mc2
+cmake --preset relwithdebinfo
+cmake --build --preset relwithdebinfo
+```
+Binaries end up in `build/relwithdebinfo/` (`mc2`), with the tools and the resource library
+under `build/relwithdebinfo/out/` (`out/res/libmc2res_64.so`, `out/data_tools/`, `out/text_tool/`).
+Other presets: `debug`, `release`, and `asan` (Debug build with AddressSanitizer + UBSan).
+Run `cmake --list-presets` to see them all.
+
+Or manually:
 ```
 cd mc2
 mkdir build64

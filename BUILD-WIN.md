@@ -1,3 +1,22 @@
+Quick start with vcpkg (recommended):
+=====================================
+
+Requires Visual Studio 2022 (with the "Desktop development with C++" workload, which includes CMake)
+and [vcpkg](https://github.com/microsoft/vcpkg). Set the `VCPKG_ROOT` environment variable to your vcpkg checkout.
+All third party libraries are listed in `vcpkg.json` and are fetched and built automatically on the first configure.
+
+```
+git clone https://github.com/alariq/mc2.git
+cd mc2
+cmake --preset windows-msvc
+cmake --build --preset windows-msvc-release
+```
+
+Binaries and the required DLLs end up under `build\windows-msvc\` (e.g. `build\windows-msvc\RelWithDebInfo\mc2.exe`).
+You can also open `build\windows-msvc\mc2.sln` in Visual Studio. Then continue with **Building data** below.
+
+The manual setup described next is still supported if you prefer not to use vcpkg.
+
 Preparing 3rdparties:
 ====================
 

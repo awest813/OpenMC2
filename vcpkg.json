@@ -1,0 +1,12 @@
+{
+  "name": "openmc2",
+  "version-string": "0.0.0",
+  "description": "MechCommander 2 open source engine",
+  "dependencies": [
+    "glew",
+    "sdl2",
+    "sdl2-mixer",
+    "sdl2-ttf",
+    "zlib"
+  ]
+}
