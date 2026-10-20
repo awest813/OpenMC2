@@ -19,8 +19,9 @@ cp "$2" "$RUN_DIR/"
 printf '[MechCommander2]\nl DigitalMasterVolume = 200\n' > "$RUN_DIR/minprefs.cfg"
 
 cd "$RUN_DIR"
-# GL debug output (and glGetError checks) on, so GL errors show up in the log
-HOME="$RUN_DIR" MC2_GL_DEBUG=1 timeout 60 xvfb-run -a -s "-screen 0 1280x1024x24" "$MC2" > startup.log 2>&1
+# GL debug output (and glGetError checks) on, so GL errors show up in the log. The user data
+# directory goes to $XDG_CONFIG_HOME when set (some CI runners set it), so keep it in $RUN_DIR
+env -u XDG_CONFIG_HOME HOME="$RUN_DIR" MC2_GL_DEBUG=1 timeout 60 xvfb-run -a -s "-screen 0 1280x1024x24" "$MC2" > startup.log 2>&1
 status=$?
 
 fail() { echo "SMOKE TEST FAILED: $1"; echo "----- log -----"; cat startup.log; exit 1; }
