@@ -108,7 +108,7 @@ static void process_events( void ) {
             break;
         case SDL_MOUSEBUTTONDOWN:
         case SDL_MOUSEBUTTONUP:
-            //input::handleMouseButton(&event);
+            input::handleMouseButton(&event);
             break;
         case SDL_MOUSEWHEEL:
             input::handleMouseWheel(&event);

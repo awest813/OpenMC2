@@ -21,6 +21,8 @@ struct MouseInfo {
     float wheel_vert_;
     float wheel_hor_;
     KeyState button_state_[NUM_BUTTONS];
+    // set by button down events, so a click that starts and ends between two updates is not lost
+    bool pressed_since_update_[NUM_BUTTONS];
 };
 
 struct KeyboardInfo {
@@ -31,6 +33,8 @@ struct KeyboardInfo {
     SDL_Keysym released_keysym_;
     uint32_t first_pressed_;
     uint8_t last_state_[512];
+    // set by key down events, so a key tap that starts and ends between two updates is not lost
+    uint8_t pressed_since_update_[512];
 };
 
 const MouseInfo* getMouseInfo();

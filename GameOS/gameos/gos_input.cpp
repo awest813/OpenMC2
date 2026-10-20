@@ -13,6 +13,7 @@ MouseInfo::MouseInfo()
      wheel_vert_(0), wheel_hor_(0)
 {
     memset(button_state_, 0 ,sizeof(button_state_));
+    memset(pressed_since_update_, 0 ,sizeof(pressed_since_update_));
 }
 
 KeyboardInfo::KeyboardInfo():
@@ -21,6 +22,7 @@ KeyboardInfo::KeyboardInfo():
     first_pressed_(-1)
 {
     memset(last_state_, 0, sizeof(last_state_));
+    memset(pressed_since_update_, 0, sizeof(pressed_since_update_));
 }
 
 const MouseInfo* getMouseInfo() {
@@ -53,8 +55,9 @@ void handleMouseMotion(const SDL_Event* event) {
     MouseInfo* mi = &g_mouse_info;
     mi->x_ = (float)event->motion.x;
     mi->y_ = (float)event->motion.y;
-    mi->rel_x_ = (float)event->motion.xrel;
-    mi->rel_y_ = (float)event->motion.yrel;
+    // several motion events can arrive per frame, deltas are reset in beginUpdateMouseState()
+    mi->rel_x_ += (float)event->motion.xrel;
+    mi->rel_y_ += (float)event->motion.yrel;
 }
 
 void handleMouseButton(const SDL_Event* event) {
@@ -62,8 +65,9 @@ void handleMouseButton(const SDL_Event* event) {
 
     MouseInfo* mi = &g_mouse_info;
     int idx = sdl2idx(event->button.button);
-    if(idx != -1 && idx < MouseInfo::NUM_BUTTONS) {
-        mi->button_state_[idx] = event->type == SDL_MOUSEBUTTONUP ? KS_PRESSED : KS_RELEASED;
+    // button_state_ itself is updated once per frame in updateMouseState()
+    if(idx != -1 && idx < MouseInfo::NUM_BUTTONS && event->type == SDL_MOUSEBUTTONDOWN) {
+        mi->pressed_since_update_[idx] = true;
     }
 }
 
@@ -71,8 +75,8 @@ void handleMouseWheel(const SDL_Event* event) {
     assert(event);
     
     MouseInfo* mi = &g_mouse_info;
-    mi->wheel_vert_ = (float)event->wheel.y;
-    mi->wheel_hor_ = (float)event->wheel.x;
+    mi->wheel_vert_ += (float)event->wheel.y;
+    mi->wheel_hor_ += (float)event->wheel.x;
 
     /* not in my SDL, apparenty >= SDL 2.0.4
     if(event->wheel.direction == SDL_MOUSEWHEEL_FLIPPED) {
@@ -102,7 +106,11 @@ void updateMouseState() {
 
         KeyState prev_ks = mi->button_state_[idx];
 
-        if(button_state & SDL_BUTTON(buttons[b])) {
+        // a click that was released again before this update still counts as pressed for one frame
+        const bool down = (button_state & SDL_BUTTON(buttons[b])) || mi->pressed_since_update_[idx];
+        mi->pressed_since_update_[idx] = false;
+
+        if(down) {
             mi->button_state_[idx] = 
                 (prev_ks==KS_FREE||prev_ks==KS_RELEASED) ? KS_PRESSED : KS_HELD;
         } else {
@@ -126,6 +134,9 @@ void handleKeyEvent(const SDL_Event* event) {
     KeyboardInfo* ki = &g_keyboard_info;
     if(event->key.state == SDL_PRESSED) {
         ki->key_pressed_ = true;
+        const int sc = event->key.keysym.scancode;
+        if(!event->key.repeat && sc >= 0 && sc < (int)sizeof(ki->pressed_since_update_))
+            ki->pressed_since_update_[sc] = 1;
     } else {
         ki->key_released_ = true;
     }
@@ -146,7 +157,11 @@ void updateKeyboardState() {
 
         uint8_t ls = ki->last_state_[i];
 
-        if(state[i]) {
+        // a key tap that was released again before this update still counts as pressed for one frame
+        const bool down = state[i] || ki->pressed_since_update_[i];
+        ki->pressed_since_update_[i] = 0;
+
+        if(down) {
            ls = (ls==KS_FREE||ls==KS_RELEASED) ? KS_PRESSED : KS_HELD;
         } else {
            ls = (ls==KS_HELD||ls==KS_PRESSED) ? KS_RELEASED : KS_FREE;
