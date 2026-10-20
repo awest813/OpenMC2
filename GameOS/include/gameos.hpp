@@ -40,12 +40,21 @@
 #include<string.h> // memcmp
 #include "platform_windows.h"
 
+#if defined(__x86_64__) || defined(__i386__)
 static __inline__ unsigned long long rdtsc(void)
 {
-    unsigned long x;
-    __asm__ volatile (".byte 0x0f, 0x31" : "=A" (x));
-    return x;
+    return __builtin_ia32_rdtsc();
 }
+#else
+#include <time.h>
+// no portable cycle counter, use a monotonic nanosecond clock instead
+static __inline__ unsigned long long rdtsc(void)
+{
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    return (unsigned long long)ts.tv_sec * 1000000000ull + ts.tv_nsec;
+}
+#endif
 // or just use clock_gettime(CLOCK_MONOTONIC_RAW);
 // or 
 //clock_gettime(CLOCK_PROCESS_CPUTIME_ID)

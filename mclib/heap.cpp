@@ -229,13 +229,9 @@ long HeapManager::commitHeap (unsigned long commitSize)
 		return NO_ERR;
 #endif
 #else
-		// only correct for 64bit?
-        // currentEbp = esp;
-        asm("mov %%rsp, %0;"
-            : "=r"(currentEbp)
-            :
-            :
-        );
+		// reading the return address off the stack by hand is x86-32 specific
+		whoMadeMe = (unsigned long)__builtin_return_address(0);
+		return NO_ERR;
 #endif
 		prevEbp = *((unsigned long *)currentEbp);
 		retAddr = *((unsigned long *)(currentEbp+4));
