@@ -9,6 +9,8 @@
 #ifndef LZ_H
 #define LZ_H
 
+#include <stddef.h> // size_t
+
 //---------------------------------------------------------------------------
 typedef unsigned char* MemoryPtr;
 size_t LZDecomp (MemoryPtr dest, MemoryPtr src, size_t srcLen);

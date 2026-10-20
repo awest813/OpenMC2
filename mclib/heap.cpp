@@ -385,6 +385,8 @@ long UserHeap::init (unsigned long memSize, const char *heapId, bool useGOS)
 		firstNearBlock = NULL;
 		heapSize = 0;
 
+		// the name copied above is not kept for gos heaps
+		::gos_Free(heapName);
 		heapName = NULL;
 		heapState = NO_ERR;
 

@@ -66,7 +66,8 @@ void PriorityQueue::upHeap (int curIndex) {
 
 int PriorityQueue::insert (PQNode& item) {
 
-	if (numItems == maxItems)
+	// pqList holds maxItems nodes (indices 0..maxItems-1) and index 0 is the sentinel
+	if (numItems + 1 >= maxItems)
 		return(1);
 
 	pqList[++numItems] = item;
