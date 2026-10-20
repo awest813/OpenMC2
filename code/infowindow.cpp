@@ -283,7 +283,7 @@ void InfoWindow::init( FitIniFile& file )
 	char SkillText[32];
 	for (int i = 0; i < 7; i++ )
 	{
-		sprintf( SkillText, "Skill%ld", i );
+		sprintf( SkillText, "Skill%d", i );
 		skillInfos[i].init( file, SkillText ,ControlGui::hiResOffsetX, ControlGui::hiResOffsetY);
 	
 	}
@@ -760,7 +760,8 @@ void InfoWindow::drawScrollingStuff()
 	//memset( names, 0, sizeof( char* ) * 60 );
 	MemSet(names, 0);
 
-	char count[4];
+	// inventory indices, 255 = none (must be unsigned: as plain char 255 became -1 and indexed inventory[-1])
+	unsigned char count[4];
 	count[0] = pUnit->ecm;
 	count[1] = pUnit->probe;
 	count[2] = pUnit->jumpJets;
@@ -995,7 +996,7 @@ void InfoWindow::drawSkillBar( int skill, float yVal, float height )
 	}
 
 	char buffer[32];
-	sprintf( buffer, "%ld", skill );
+	sprintf( buffer, "%d", skill );
 	componentFont.render( buffer, SKILLRIGHT+2, yVal, SCROLLLEFT - SKILLRIGHT - 2, SKILLHEIGHT, 0xff005392, 0, 0 );
 }
 

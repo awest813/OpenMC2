@@ -368,23 +368,23 @@ void MPStatsEntry::setData(const MC2Player* data, bool bShowScore )
 
 		textObjects[0].setText( data->name );
 		char team[32];
-		sprintf( team, "%ld", data->teamSelected + 1 );
+		sprintf( team, "%d", data->teamSelected + 1 );
 		textObjects[1].setText( team );
 		// score needs to do here
-		sprintf( team, "%ld", data->score );
+		sprintf( team, "%d", data->score );
 		if ( MPlayer->missionSettings.missionType == MISSION_TYPE_KING_OF_THE_HILL )
 		{
-			sprintf( team, "%ld:%.2ld", data->score/60, data->score % 60 );
+			sprintf( team, "%d:%.2d", data->score/60, data->score % 60 );
 		}
 		if ( bShowScore )
 			textObjects[2].setText( team );
 		else
 			textObjects[2].setText( "" );
 
-		sprintf( team, "%ld", data->kills );
+		sprintf( team, "%d", data->kills );
 		textObjects[3].setText( team );
 
-		sprintf( team, "%ld", data->losses );
+		sprintf( team, "%d", data->losses );
 		textObjects[4].setText( team );
 
 	}
@@ -479,24 +479,24 @@ void MPStatsResultsEntry::setData(const MC2Player* data, unsigned long laurelCol
 	textObjects[4].setColor( textColor );
 
 	char text[64];
-	sprintf( text, "%ld", MPlayer->teamScore[data->team] );
+	sprintf( text, "%d", MPlayer->teamScore[data->team] );
 	if ( MPlayer->missionSettings.missionType == MISSION_TYPE_KING_OF_THE_HILL )
 	{
-		sprintf( text, "%ld:%.2ld", MPlayer->teamScore[data->team]/60, MPlayer->teamScore[data->team] % 60 );
+		sprintf( text, "%d:%.2d", MPlayer->teamScore[data->team]/60, MPlayer->teamScore[data->team] % 60 );
 	}
 	if ( bShowScore )
 		textObjects[0].setText( text );
 	else
 		textObjects[0].setText( "" );
 
-	sprintf( text, "%ld", data->kills );
+	sprintf( text, "%d", data->kills );
 	textObjects[1].setText( text );
 
-	sprintf( text, "%ld", data->losses );
+	sprintf( text, "%d", data->losses );
 	textObjects[2].setText( text );
 
 
-	sprintf( text, "%ld", data->teamSelected + 1);
+	sprintf( text, "%d", data->teamSelected + 1);
 	textObjects[5].setText( text );
 
 	char path[256];
@@ -514,21 +514,12 @@ void MPStatsResultsEntry::setData(const MC2Player* data, unsigned long laurelCol
 		rects[7].setColor( 0 );
 	}
 
+	// insigniaList only flags whether an insignia was received; the image data itself is
+	// not kept in memory, so the insignia can only be shown if it exists on disk
 	if ( fileExists( path ) )
 	{
 		statics[0].setTexture( path );
 		statics[0].setUVs( 0, 0, 32, 32 );
-	}
-	else
-	{
-		TGAFileHeader*  pData = (TGAFileHeader*)MPlayer->insigniaList[data->commanderID];
-		if ( pData )
-		{
-			int size = pData->pixel_depth/8;
-			int ID = mcTextureManager->textureFromMemory( (DWORD*)(pData+1), gos_Texture_Solid, 0, pData->width, size  );
-			statics[0].setTexture( ID );
-			statics[0].setUVs( 0, 32, 32, 0 );
-		}
 	}
 
 

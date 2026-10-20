@@ -271,7 +271,7 @@ class ABLModule {
 		void clearOrderCallFlag (unsigned char orderDWord, unsigned char orderBitMask);
 
 		bool getOrderCallFlag (unsigned char dword, unsigned char bit) {
-			return((orderCallFlags[dword] & (1 << bit)) != 0);
+			return((orderCallFlags[dword] & (1UL << bit)) != 0);
 		}
 
 		WatchManagerPtr getWatchManager (void) {

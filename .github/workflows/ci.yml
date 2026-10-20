@@ -1,0 +1,130 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  linux:
+    name: Linux ${{ matrix.arch }} ${{ matrix.compiler }}
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { runner: ubuntu-24.04,     arch: x64,   compiler: gcc,   cc: gcc,   cxx: g++ }
+          - { runner: ubuntu-24.04,     arch: x64,   compiler: clang, cc: clang, cxx: clang++ }
+          - { runner: ubuntu-24.04-arm, arch: arm64, compiler: gcc,   cc: gcc,   cxx: g++ }
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            ninja-build libsdl2-dev libsdl2-mixer-dev libsdl2-ttf-dev libglew-dev zlib1g-dev \
+            xvfb xauth libgl1-mesa-dri
+
+      - name: Configure
+        run: cmake --preset relwithdebinfo -DCMAKE_C_COMPILER=${{ matrix.cc }} -DCMAKE_CXX_COMPILER=${{ matrix.cxx }}
+
+      - name: Build
+        run: cmake --build --preset relwithdebinfo
+
+      - name: Test
+        run: ctest --test-dir build/relwithdebinfo --output-on-failure
+
+      - name: Startup smoke test (Xvfb, software OpenGL)
+        run: tests/smoke_startup.sh build/relwithdebinfo/mc2 build/relwithdebinfo/out/res/libmc2res_64.so
+
+      - name: Collect binaries
+        run: |
+          mkdir -p dist
+          cp build/relwithdebinfo/mc2 dist/
+          cp build/relwithdebinfo/out/res/libmc2res_*.so dist/
+          cp build/relwithdebinfo/out/data_tools/{aseconv,makefst,makersp,pak} dist/
+          cp build/relwithdebinfo/out/text_tool/text_tool dist/
+          cp -r shaders dist/
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mc2-linux-${{ matrix.arch }}-${{ matrix.compiler }}
+          path: dist/
+          retention-days: 14
+
+  sanitizers:
+    name: Linux x64 ASan+UBSan tests
+    runs-on: ubuntu-24.04
+    env:
+      ASAN_OPTIONS: detect_leaks=1:abort_on_error=1
+      UBSAN_OPTIONS: print_stacktrace=1:halt_on_error=1
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            ninja-build libsdl2-dev libsdl2-mixer-dev libsdl2-ttf-dev libglew-dev zlib1g-dev
+
+      - name: Configure
+        run: cmake --preset asan
+
+      - name: Build tests
+        run: cmake --build --preset asan --target mc2_tests
+
+      - name: Test
+        run: ctest --test-dir build/asan --output-on-failure
+
+  windows:
+    name: Windows x64 MSVC
+    runs-on: windows-2022
+    env:
+      VCPKG_BINARY_SOURCES: clear;files,${{ github.workspace }}\vcpkg-cache,readwrite
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up vcpkg
+        shell: pwsh
+        run: |
+          "VCPKG_ROOT=$env:VCPKG_INSTALLATION_ROOT" | Out-File -FilePath $env:GITHUB_ENV -Append
+          New-Item -ItemType Directory -Force -Path "${{ github.workspace }}\vcpkg-cache" | Out-Null
+
+      - name: Restore vcpkg binary cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ github.workspace }}\vcpkg-cache
+          key: vcpkg-x64-windows-${{ hashFiles('vcpkg.json') }}
+          restore-keys: vcpkg-x64-windows-
+
+      - name: Configure
+        run: cmake --preset windows-msvc
+
+      - name: Build
+        run: cmake --build --preset windows-msvc-release -- /m
+
+      - name: Test
+        run: ctest --test-dir build/windows-msvc -C RelWithDebInfo --output-on-failure
+
+      - name: Collect binaries
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path dist | Out-Null
+          Get-ChildItem build/windows-msvc -Recurse -Include *.exe,*.dll |
+            Where-Object { $_.FullName -match '\\RelWithDebInfo\\' -and $_.FullName -notmatch '\\CMakeFiles\\' } |
+            Copy-Item -Destination dist
+          Copy-Item -Recurse shaders dist/shaders
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mc2-windows-x64-msvc
+          path: dist/
+          retention-days: 14

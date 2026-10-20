@@ -1223,8 +1223,8 @@ void Mission::load (const char *loadFileName)
 
 		for (i = 1; i < numParts + 1; i++)
 		{
-			char partName[12];
-			sprintf(partName,"Part%d", i);
+			char partName[16];
+			snprintf(partName, sizeof(partName),"Part%d", i);
 			
 			//------------------------------------------------------------------
 			// Find the object to load

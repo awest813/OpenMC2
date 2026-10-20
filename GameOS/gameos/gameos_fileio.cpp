@@ -16,6 +16,7 @@
 #include "platform_io.h"
 
 #include <errno.h>
+#include <filesystem>
 
 #include "platform_io.h" // will be removed
 
@@ -34,11 +35,12 @@ gosFileStream::gosFileStream( const char *FileName, gosEnum_FileWriteStatus fwst
         case READONLY:
             mode = "rb";
             break;
-        case READWRITE:
-            mode = "rwb";
+        // see gosEnum_FileWriteStatus in toolos.hpp ("rwb" is not a valid mode, it opened files read-only)
+        case READWRITE: // read and write, clears the file on open
+            mode = "w+b";
             break;
-        case APPEND:
-            mode = "ab";
+        case APPEND: // read and write, keeps the file if it exists
+            mode = "a+b";
             break;
         default:
             STOP(("Unknown file open mode"));
@@ -73,7 +75,10 @@ DWORD gosFileStream::Seek( int where, gosEnum_FileSeekType seek_type)
             gosASSERT(0);
     }
 
-    return fseek((FILE*)m_hFile, where, whence);
+    // returns the new position (like SetFilePointer), or (DWORD)-1 on error
+    if(fseek((FILE*)m_hFile, where, whence) != 0)
+        return (DWORD)-1;
+    return (DWORD)ftell((FILE*)m_hFile);
 }
 
 DWORD gosFileStream::Read( void *buffer, DWORD length )
@@ -144,6 +149,12 @@ DWORD __stdcall gos_WriteFile(HGOSFILE hfile, void const* buf, DWORD size)
     return fstream->Write(buf, size);
 }
 
+DWORD __stdcall gos_SeekFile(HGOSFILE hfile, gosEnum_FileSeekType type, int offset)
+{
+    gosFileStream* fstream = hfile;
+    return fstream->Seek(offset, type);
+}
+
 void __stdcall gos_CloseFile(gosFileStream* hfile)
 {
     gosFileStream* fstream = hfile;
@@ -152,13 +163,15 @@ void __stdcall gos_CloseFile(gosFileStream* hfile)
 ////////////////////////////////////////////////////////////////////////////////
 bool __stdcall gos_DoesFileExist(char const* FileName)
 {
-    STOP(("gos function not implemented"));
-    return false;
+    if(Environment.HookDoesFileExist)
+        return Environment.HookDoesFileExist(FileName);
+    return gos_FileExists(FileName);
 }
 bool __stdcall gos_CreateDirectory(char const* FileName)
 {
-    STOP(("gos function not implemented"));
-    return false;
+    std::error_code ec;
+    std::filesystem::create_directories(FileName, ec);
+    return !ec && std::filesystem::is_directory(FileName, ec);
 }
 char* __stdcall gos_FindDirectories(char const* DirectoryName)
 {
@@ -198,9 +211,43 @@ void __stdcall gos_GetCurrentPath(char* Buffer, int buf_len)
     }
 }
 
+// reads a whole file into memory allocated with gos_Malloc (the caller frees it with gos_Free)
 void __stdcall gos_GetFile(char const* FileName, BYTE** MemoryImage, SIZE_T* Size)
 {
-    STOP(("gos function not implemented"));
+    gosASSERT(MemoryImage && Size);
+    *MemoryImage = NULL;
+    *Size = 0;
+
+    if(Environment.HookGetFile) {
+        DWORD size = 0;
+        Environment.HookGetFile(FileName, MemoryImage, &size);
+        *Size = size;
+        return;
+    }
+
+    FILE* f = fopen(FileName, "rb");
+    if(!f) {
+        STOP(("gos_GetFile: cannot open %s: %s\n", FileName, strerror(errno)));
+        return;
+    }
+    fseek(f, 0, SEEK_END);
+    long len = ftell(f);
+    fseek(f, 0, SEEK_SET);
+    if(len < 0) {
+        fclose(f);
+        STOP(("gos_GetFile: cannot get the size of %s\n", FileName));
+        return;
+    }
+    BYTE* data = (BYTE*)gos_Malloc(len > 0 ? len : 1);
+    if(len > 0 && fread(data, 1, len, f) != (size_t)len) {
+        fclose(f);
+        gos_Free(data);
+        STOP(("gos_GetFile: failed to read %s\n", FileName));
+        return;
+    }
+    fclose(f);
+    *MemoryImage = data;
+    *Size = (SIZE_T)len;
 }
 
 // sebi

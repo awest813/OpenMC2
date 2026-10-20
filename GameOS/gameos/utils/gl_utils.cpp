@@ -10,6 +10,21 @@
 #include "utils/camera.h"
 #include "utils/gl_render_constants.h"
 #include "utils/Image.h"
+#include <cstdlib>
+
+bool gl_debug_enabled()
+{
+    static int enabled = -1;
+    if (enabled < 0) {
+        const char* env = getenv("MC2_GL_DEBUG");
+#ifdef _DEBUG
+        enabled = !(env && env[0] == '0');
+#else
+        enabled = env && env[0] == '1';
+#endif
+    }
+    return enabled != 0;
+}
 
 uint32_t vec4_to_uint32(const vec4& v) {
 

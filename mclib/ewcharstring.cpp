@@ -931,7 +931,7 @@ EWCharString operator+( const EWCharString& Begin_String,  EWCSChar Char )
 	Tmp[0] = Char;
 	Tmp[1] = 0;
 
-	return Begin_String + Char;
+	return Begin_String + Tmp;
 }
 
 /////////////////////////////////////////////////////////////////

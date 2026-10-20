@@ -82,7 +82,7 @@ __int64 __stdcall GetCycles()
 #else
     struct timespec ts;
     clock_gettime(CLOCK_MONOTONIC_RAW, &ts);
-    int64_t v = ts.tv_sec * 1e+9;
+    int64_t v = (int64_t)ts.tv_sec * 1000000000;
     v += ts.tv_nsec;
     return v;
 #endif
@@ -107,13 +107,16 @@ double __stdcall gos_GetElapsedTime( int RealTime )
 
 double __stdcall gos_GetHiResTime()
 {
-#ifdef PLATFORM_LINUX
+#ifndef PLATFORM_WINDOWS
     struct timespec ts;
     clock_gettime(CLOCK_MONOTONIC_RAW, &ts);
-    double time_sec = ts.tv_sec + ((double)ts.tv_nsec)/10.0e+9;
+    double time_sec = ts.tv_sec + ((double)ts.tv_nsec)/1.0e+9;
     return time_sec;
 #else
-	return ((double)timeGetTime()) * 0.001;
+	LARGE_INTEGER frequency, counter;
+	QueryPerformanceFrequency(&frequency);
+	QueryPerformanceCounter(&counter);
+	return (double)counter.QuadPart / (double)frequency.QuadPart;
 #endif
 }
 
@@ -176,6 +179,15 @@ void* operator new(size_t sz) {
     return gos_Malloc(sz, NULL);
 }
 void operator delete(void* ptr)
+#ifndef PLATFORM_WINDOWS
+noexcept 
+#endif
+{
+    gos_Free(ptr);
+}
+// sized deallocation (C++14) must be replaced as well, otherwise the compiler may pair
+// our malloc-based operator new with the library's sized operator delete
+void operator delete(void* ptr, size_t)
 #ifndef PLATFORM_WINDOWS
 noexcept 
 #endif
@@ -453,7 +465,7 @@ void __stdcall gos_LoadDataFromRegistry( const char* keyName, void* pData, DWORD
 
     // if directory does not exist create it
 #ifndef PLATFORM_WINDOWS
-    int permissions = S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH;
+    int permissions = S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH; // 0755, before umask
 #endif
 	if(-1 == stat(mc2_conf_dir, &st)) {
 #ifdef PLATFORM_WINDOWS
@@ -474,11 +486,12 @@ void __stdcall gos_LoadDataFromRegistry( const char* keyName, void* pData, DWORD
     // check if reg file exists
     if(-1 == stat(reg_file, &st)) {
         *szData = 0;
-        return;
     } else {
         *szData = 0;
         // open file and read value
     }
+    delete[] reg_file;
+    delete[] mc2_conf_dir;
 }
 
 void __stdcall gos_SaveDataToRegistry( const char* keyName,  void* pData,  DWORD szData )
@@ -537,7 +550,7 @@ bool __stdcall gos_GetUserDataDirectory(char* user_dir, const int len)
 
     // if directory does not exist create it
 #ifndef PLATFORM_WINDOWS
-	int permissions = S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH | S_IXUSR | S_IXGRP;      
+    int permissions = S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH; // 0755, before umask
 #endif
 
     if(-1 == stat(mc2_conf_dir, &st)) {

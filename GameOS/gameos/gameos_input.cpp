@@ -3,6 +3,7 @@
 #include <SDL2/SDL.h> // can avoid inluding this here if move MouseInfo struct to separate file
 #include "gos_input.h"
 #include "utils/vec.h"
+#include "utils/viewport.h"
 
 #include<string.h>
 
@@ -27,20 +28,36 @@
 // You may pass zero as any parameter you do not wish to query
 //
 ////////////////////////////////////////////////////////////////////////////////
+extern SDL_Window* g_sdl_window;
 void __stdcall gos_GetMouseInfo( float* pXPosition, float* pYPosition, int* pXDelta, int* pYDelta, int* pWheelDelta, DWORD* pButtonsPressed )
 {
-    //const float w = (float)Environment.screenWidth;
-    //const float h = (float)Environment.screenHeight;
-
-    const float w = (float)Environment.drawableWidth;
-    const float h = (float)Environment.drawableHeight;
-
     const input::MouseInfo* mi = input::getMouseInfo();
 
+    // SDL reports the mouse in window coordinates; the game's screen is drawn into a viewport of the
+    // drawable (which has more pixels than the window on HiDPI displays, and may have black bars)
+    int window_w = 0, window_h = 0;
+    if(g_sdl_window)
+        SDL_GetWindowSize(g_sdl_window, &window_w, &window_h);
+    const int drawable_w = Environment.drawableWidth;
+    const int drawable_h = Environment.drawableHeight;
+    const int logical_w = Environment.screenWidth > 0 ? Environment.screenWidth : drawable_w;
+    const int logical_h = Environment.screenHeight > 0 ? Environment.screenHeight : drawable_h;
+    const presentation::Rect vp = presentation::compute_viewport(logical_w, logical_h, drawable_w, drawable_h,
+            Environment.stretchToWindow);
+
+    float x = 0.0f, y = 0.0f;
+    presentation::window_to_viewport(mi->x_, mi->y_, window_w, window_h, drawable_w, drawable_h, vp, &x, &y);
     if(pXPosition)
-        *pXPosition = mi->x_ / w;
+        *pXPosition = x;
     if(pYPosition)
-        *pYPosition = mi->y_ / h;
+        *pYPosition = y;
+
+    // deltas in the game's (logical) pixels
+    float scale_x = 1.0f, scale_y = 1.0f;
+    presentation::window_to_logical_scale(window_w, window_h, drawable_w, drawable_h, vp, logical_w, logical_h,
+            &scale_x, &scale_y);
+    const float w = (float)logical_w;
+    const float h = (float)logical_h;
 
 	// as percentage of screen size
     
@@ -52,9 +69,9 @@ void __stdcall gos_GetMouseInfo( float* pXPosition, float* pYPosition, int* pXDe
         *pYDelta = (int)(100.0f * clamp(mi->rel_y_ / h, -1.0f, 1.0f));
         */
     if(pXDelta)
-        *pXDelta = (int)(clamp(mi->rel_x_, -w, w));
+        *pXDelta = (int)(clamp(mi->rel_x_ * scale_x, -w, w));
     if(pYDelta)
-        *pYDelta = (int)(clamp(mi->rel_y_, -h, h));
+        *pYDelta = (int)(clamp(mi->rel_y_ * scale_y, -h, h));
 
     //if(pWheelDelta)
     //  *pWheelDelta = (int)(100.0f * (mi->wheel_vert_ / h));
@@ -74,7 +91,6 @@ void __stdcall gos_GetMouseInfo( float* pXPosition, float* pYPosition, int* pXDe
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-extern SDL_Window* g_sdl_window;
 void __stdcall gos_SetMousePosition( float XPosition, float YPosition )
 {
     if(g_sdl_window) {
@@ -84,6 +100,96 @@ void __stdcall gos_SetMousePosition( float XPosition, float YPosition )
 
 // loks like KEY_* enum contains everything, from scancodes to localized keys, e.g. it has GRAVE and APOSTROPHE but those are usually on the same physical button and valuse depends on localization
 // let's keep it like this for now and see later
+//
+// One table for both directions, so they can't get out of sync. Digits and letters are handled
+// separately. Some KEY_* values are shared (KEY_LCONTROL == KEY_RCONTROL, KEY_LSHIFT == KEY_RSHIFT,
+// KEY_LMENU == KEY_RMENU (Alt), KEY_RETURN == KEY_NUMPADENTER, KEY_PAUSE == KEY_STOP): lookups take
+// the first matching entry.
+struct KeyMapping {
+    gosEnum_KeyIndex key;
+    SDL_Scancode scancode;
+};
+
+static const KeyMapping g_key_mappings[] = {
+    { KEY_ESCAPE, SDL_SCANCODE_ESCAPE },
+    { KEY_MINUS, SDL_SCANCODE_MINUS },
+    { KEY_EQUALS, SDL_SCANCODE_EQUALS },
+    { KEY_BACK, SDL_SCANCODE_BACKSPACE },
+    { KEY_TAB, SDL_SCANCODE_TAB },
+    { KEY_LBRACKET, SDL_SCANCODE_LEFTBRACKET },
+    { KEY_RBRACKET, SDL_SCANCODE_RIGHTBRACKET },
+    { KEY_SEMICOLON, SDL_SCANCODE_SEMICOLON },
+    { KEY_GRAVE, SDL_SCANCODE_GRAVE },
+    { KEY_BACKSLASH, SDL_SCANCODE_BACKSLASH },
+    { KEY_COMMA, SDL_SCANCODE_COMMA },
+    { KEY_PERIOD, SDL_SCANCODE_PERIOD },
+    { KEY_SLASH, SDL_SCANCODE_SLASH },
+    { KEY_MULTIPLY, SDL_SCANCODE_KP_MULTIPLY },
+    { KEY_SPACE, SDL_SCANCODE_SPACE },
+    { KEY_CAPITAL, SDL_SCANCODE_CAPSLOCK },
+    { KEY_F1, SDL_SCANCODE_F1 },
+    { KEY_F2, SDL_SCANCODE_F2 },
+    { KEY_F3, SDL_SCANCODE_F3 },
+    { KEY_F4, SDL_SCANCODE_F4 },
+    { KEY_F5, SDL_SCANCODE_F5 },
+    { KEY_F6, SDL_SCANCODE_F6 },
+    { KEY_F7, SDL_SCANCODE_F7 },
+    { KEY_F8, SDL_SCANCODE_F8 },
+    { KEY_F9, SDL_SCANCODE_F9 },
+    { KEY_F10, SDL_SCANCODE_F10 },
+    { KEY_F11, SDL_SCANCODE_F11 },
+    { KEY_F12, SDL_SCANCODE_F12 },
+    { KEY_F13, SDL_SCANCODE_F13 },
+    { KEY_F14, SDL_SCANCODE_F14 },
+    { KEY_F15, SDL_SCANCODE_F15 },
+    { KEY_NUMPAD0, SDL_SCANCODE_KP_0 },
+    { KEY_NUMPAD1, SDL_SCANCODE_KP_1 },
+    { KEY_NUMPAD2, SDL_SCANCODE_KP_2 },
+    { KEY_NUMPAD3, SDL_SCANCODE_KP_3 },
+    { KEY_NUMPAD4, SDL_SCANCODE_KP_4 },
+    { KEY_NUMPAD5, SDL_SCANCODE_KP_5 },
+    { KEY_NUMPAD6, SDL_SCANCODE_KP_6 },
+    { KEY_NUMPAD7, SDL_SCANCODE_KP_7 },
+    { KEY_NUMPAD8, SDL_SCANCODE_KP_8 },
+    { KEY_NUMPAD9, SDL_SCANCODE_KP_9 },
+    { KEY_SUBTRACT, SDL_SCANCODE_KP_MINUS },
+    { KEY_ADD, SDL_SCANCODE_KP_PLUS },
+    { KEY_DECIMAL, SDL_SCANCODE_KP_PERIOD },
+    { KEY_KANA, SDL_SCANCODE_LANG3 },
+    { KEY_NUMPADEQUALS, SDL_SCANCODE_KP_EQUALS },
+    { KEY_KANJI, SDL_SCANCODE_LANG2 }, // is it correct?
+    { KEY_RETURN, SDL_SCANCODE_RETURN },
+    { KEY_NUMPADENTER, SDL_SCANCODE_KP_ENTER },
+    { KEY_NUMPADCOMMA, SDL_SCANCODE_KP_COMMA },
+    { KEY_DIVIDE, SDL_SCANCODE_KP_DIVIDE },
+    { KEY_SYSRQ, SDL_SCANCODE_SYSREQ },
+    { KEY_HOME, SDL_SCANCODE_HOME },
+    { KEY_UP, SDL_SCANCODE_UP },
+    { KEY_PRIOR, SDL_SCANCODE_PAGEUP },
+    { KEY_LEFT, SDL_SCANCODE_LEFT },
+    { KEY_RIGHT, SDL_SCANCODE_RIGHT },
+    { KEY_END, SDL_SCANCODE_END },
+    { KEY_DOWN, SDL_SCANCODE_DOWN },
+    { KEY_NEXT, SDL_SCANCODE_PAGEDOWN },
+    { KEY_INSERT, SDL_SCANCODE_INSERT },
+    { KEY_DELETE, SDL_SCANCODE_DELETE },
+    { KEY_LWIN, SDL_SCANCODE_LGUI },
+    { KEY_RWIN, SDL_SCANCODE_RGUI },
+    { KEY_APPS, SDL_SCANCODE_APPLICATION },
+    { KEY_NUMLOCK, SDL_SCANCODE_NUMLOCKCLEAR },
+    { KEY_PAUSE, SDL_SCANCODE_PAUSE },
+    // gos does not differentiate left and right control/shift
+    { KEY_LCONTROL, SDL_SCANCODE_LCTRL },
+    { KEY_RCONTROL, SDL_SCANCODE_RCTRL },
+    { KEY_LSHIFT, SDL_SCANCODE_LSHIFT },
+    { KEY_RSHIFT, SDL_SCANCODE_RSHIFT },
+    // Alt keys are reported as KEY_LALT/KEY_RALT, KEY_LMENU (both Alt keys) is accepted as well
+    { KEY_LALT, SDL_SCANCODE_LALT },
+    { KEY_RALT, SDL_SCANCODE_RALT },
+    { KEY_LMENU, SDL_SCANCODE_LALT },
+};
+
+// returns 0 (no key) for scancodes gos has no key for
 gosEnum_KeyIndex remap_sdl_to_gos(const SDL_Scancode scancode) {
 
     if(scancode >= SDL_SCANCODE_1 && scancode <= SDL_SCANCODE_9)
@@ -93,94 +199,12 @@ gosEnum_KeyIndex remap_sdl_to_gos(const SDL_Scancode scancode) {
     if(scancode >= SDL_SCANCODE_A && scancode <= SDL_SCANCODE_Z)
         return (gosEnum_KeyIndex)(scancode - SDL_SCANCODE_A + KEY_A);
 
-    switch(scancode) {
-        case SDL_SCANCODE_ESCAPE: return KEY_ESCAPE;
-        case SDL_SCANCODE_MINUS: return KEY_MINUS;
-        case SDL_SCANCODE_EQUALS: return KEY_EQUALS;
-        case SDL_SCANCODE_BACKSPACE: return KEY_BACK;
-        case SDL_SCANCODE_TAB: return KEY_TAB;
-        case SDL_SCANCODE_LEFTBRACKET: return KEY_LBRACKET;
-        case SDL_SCANCODE_RIGHTBRACKET: return KEY_RBRACKET;
-        case SDL_SCANCODE_RETURN: return KEY_RETURN;
-        case SDL_SCANCODE_SEMICOLON: return KEY_SEMICOLON;
-        case SDL_SCANCODE_APOSTROPHE: return KEY_APOSTROPHE;
-        case SDL_SCANCODE_GRAVE: return KEY_GRAVE;
-        case SDL_SCANCODE_BACKSLASH: return KEY_BACKSLASH;
-        case SDL_SCANCODE_COMMA: return KEY_COMMA;
-        case SDL_SCANCODE_PERIOD: return KEY_PERIOD;
-        case SDL_SCANCODE_SLASH: return KEY_SLASH;
-        case SDL_SCANCODE_KP_MULTIPLY: return KEY_MULTIPLY;
-        case SDL_SCANCODE_MENU: return KEY_LMENU;
-        case SDL_SCANCODE_SPACE: return KEY_SPACE;
-        case SDL_SCANCODE_CAPSLOCK: return KEY_CAPITAL;
-        case SDL_SCANCODE_F1: return KEY_F1;
-        case SDL_SCANCODE_F2: return KEY_F2;
-        case SDL_SCANCODE_F3: return KEY_F3;
-        case SDL_SCANCODE_F4: return KEY_F4;
-        case SDL_SCANCODE_F5: return KEY_F5;
-        case SDL_SCANCODE_F6: return KEY_F6;
-        case SDL_SCANCODE_F7: return KEY_F7;
-        case SDL_SCANCODE_F8: return KEY_F8;
-        case SDL_SCANCODE_F9: return KEY_F9;
-        case SDL_SCANCODE_F10: return KEY_F10;
-        case SDL_SCANCODE_F11: return KEY_F11;
-        case SDL_SCANCODE_F12: return KEY_F12;
-        case SDL_SCANCODE_F13: return KEY_F13;
-        case SDL_SCANCODE_F14: return KEY_F14;
-        case SDL_SCANCODE_F15: return KEY_F15;
-        case SDL_SCANCODE_KP_0: return KEY_NUMPAD0;
-        case SDL_SCANCODE_KP_1: return KEY_NUMPAD1;
-        case SDL_SCANCODE_KP_2: return KEY_NUMPAD2;
-        case SDL_SCANCODE_KP_3: return KEY_NUMPAD3;
-        case SDL_SCANCODE_KP_4: return KEY_NUMPAD4;
-        case SDL_SCANCODE_KP_5: return KEY_NUMPAD5;
-        case SDL_SCANCODE_KP_6: return KEY_NUMPAD6;
-        case SDL_SCANCODE_KP_7: return KEY_NUMPAD7;
-        case SDL_SCANCODE_KP_8: return KEY_NUMPAD8;
-        case SDL_SCANCODE_KP_9: return KEY_NUMPAD9;
-        case SDL_SCANCODE_KP_MINUS: return KEY_SUBTRACT;
-        case SDL_SCANCODE_KP_PLUS: return KEY_ADD;
-        case SDL_SCANCODE_KP_PERIOD: return KEY_DECIMAL;
-        case SDL_SCANCODE_LANG3: return KEY_KANA;
+    for(const KeyMapping& m : g_key_mappings) {
+        if(m.scancode == scancode)
+            return m.key;
+    }
 
-        case SDL_SCANCODE_INTERNATIONAL3: return KEY_YEN;
-        //case SDL_SCANCODE_GRAVE: return KEY_CIRCUMFLEX;
-        case SDL_SCANCODE_KP_AT: return KEY_AT;
-        case SDL_SCANCODE_KP_COLON: return KEY_COLON;
-        case SDL_SCANCODE_STOP: return KEY_STOP;
-        case SDL_SCANCODE_KP_EQUALS: return KEY_NUMPADEQUALS;
-        case SDL_SCANCODE_LANG2: return KEY_KANJI; // is it correct?
-        case SDL_SCANCODE_KP_ENTER: return KEY_NUMPADENTER;
-        case SDL_SCANCODE_KP_COMMA: return KEY_NUMPADCOMMA;
-        case SDL_SCANCODE_KP_DIVIDE: return KEY_DIVIDE;
-        case SDL_SCANCODE_SYSREQ: return KEY_SYSRQ;
-        case SDL_SCANCODE_HOME: return KEY_HOME;
-        case SDL_SCANCODE_UP: return KEY_UP;
-        case SDL_SCANCODE_PAGEUP: return KEY_PRIOR;
-        case SDL_SCANCODE_LEFT: return KEY_LEFT;
-        case SDL_SCANCODE_RIGHT: return KEY_RIGHT;
-        case SDL_SCANCODE_END: return KEY_END;
-        case SDL_SCANCODE_DOWN: return KEY_DOWN;
-        case SDL_SCANCODE_PAGEDOWN: return KEY_NEXT;
-        case SDL_SCANCODE_INSERT: return KEY_INSERT;
-        case SDL_SCANCODE_DELETE: return KEY_DELETE;
-        case SDL_SCANCODE_LGUI: return KEY_LWIN;
-        case SDL_SCANCODE_RGUI: return KEY_RWIN;
-        case SDL_SCANCODE_APPLICATION: return KEY_APPS;
-        case SDL_SCANCODE_NUMLOCKCLEAR: return KEY_NUMLOCK;
-        case SDL_SCANCODE_PAUSE: return KEY_PAUSE;
-
-        case SDL_SCANCODE_LCTRL: return KEY_LCONTROL;
-        case SDL_SCANCODE_RCTRL: return KEY_RCONTROL;
-        case SDL_SCANCODE_LSHIFT: return KEY_LSHIFT;
-        case SDL_SCANCODE_RSHIFT: return KEY_RSHIFT;
-        case SDL_SCANCODE_LALT: return KEY_LALT;
-        case SDL_SCANCODE_RALT: return KEY_RALT;
-        default:
-            PAUSE(("Unsupported scancode: %d\n", scancode));
-    };
-
-    return KEY_ESCAPE;
+    return (gosEnum_KeyIndex)0;
 }
 
 SDL_Scancode remap_gos_to_sdl(const gosEnum_KeyIndex key_index) {
@@ -192,104 +216,22 @@ SDL_Scancode remap_gos_to_sdl(const gosEnum_KeyIndex key_index) {
     if(key_index >= KEY_A && key_index <= KEY_Z)
         return (SDL_Scancode)(key_index - KEY_A + SDL_SCANCODE_A);
 
-    switch(key_index) {
-        case KEY_ESCAPE: return SDL_SCANCODE_ESCAPE;
-        case KEY_MINUS: return SDL_SCANCODE_MINUS;
-        case KEY_EQUALS: return SDL_SCANCODE_EQUALS;
-        case KEY_BACK: return SDL_SCANCODE_BACKSPACE;
-        case KEY_TAB: return SDL_SCANCODE_TAB;
-        case KEY_LBRACKET: return SDL_SCANCODE_LEFTBRACKET;
-        case KEY_RBRACKET: return SDL_SCANCODE_RIGHTBRACKET;
-
-        // KEY_COLON: 
-        case KEY_SEMICOLON: return SDL_SCANCODE_SEMICOLON;
-
-        //case KEY_APOSTROPHE: return SDL_SCANCODE_BACKSLASH;
-        // KEY_AT: 
-        case KEY_GRAVE: return SDL_SCANCODE_GRAVE;
-
-        //KEY_YEN: //return SDL_SCANCODE_INTERNATIONAL3;
-        case KEY_BACKSLASH: return SDL_SCANCODE_BACKSLASH;
-
-        case KEY_COMMA: return SDL_SCANCODE_COMMA;
-        case KEY_PERIOD: return SDL_SCANCODE_PERIOD;
-        case KEY_SLASH: return SDL_SCANCODE_SLASH;
-        case KEY_MULTIPLY: return SDL_SCANCODE_KP_MULTIPLY;
-        case KEY_LMENU: return SDL_SCANCODE_MENU;
-        case KEY_SPACE: return SDL_SCANCODE_SPACE;
-        case KEY_CAPITAL: return SDL_SCANCODE_CAPSLOCK;
-        case KEY_F1: return SDL_SCANCODE_F1;
-        case KEY_F2: return SDL_SCANCODE_F2;
-        case KEY_F3: return SDL_SCANCODE_F3;
-        case KEY_F4: return SDL_SCANCODE_F4;
-        case KEY_F5: return SDL_SCANCODE_F5;
-        case KEY_F6: return SDL_SCANCODE_F6;
-        case KEY_F7: return SDL_SCANCODE_F7;
-        case KEY_F8: return SDL_SCANCODE_F8;
-        case KEY_F9: return SDL_SCANCODE_F9;
-        case KEY_F10: return SDL_SCANCODE_F10;
-        case KEY_F11: return SDL_SCANCODE_F11;
-        case KEY_F12: return SDL_SCANCODE_F12;
-        case KEY_F13: return SDL_SCANCODE_F13;
-        case KEY_F14: return SDL_SCANCODE_F14;
-        case KEY_F15: return SDL_SCANCODE_F15;
-        case KEY_NUMPAD0: return SDL_SCANCODE_KP_0;
-        case KEY_NUMPAD1: return SDL_SCANCODE_KP_1;
-        case KEY_NUMPAD2: return SDL_SCANCODE_KP_2;
-        case KEY_NUMPAD3: return SDL_SCANCODE_KP_3;
-        case KEY_NUMPAD4: return SDL_SCANCODE_KP_4;
-        case KEY_NUMPAD5: return SDL_SCANCODE_KP_5;
-        case KEY_NUMPAD6: return SDL_SCANCODE_KP_6;
-        case KEY_NUMPAD7: return SDL_SCANCODE_KP_7;
-        case KEY_NUMPAD8: return SDL_SCANCODE_KP_8;
-        case KEY_NUMPAD9: return SDL_SCANCODE_KP_9;
-        case KEY_SUBTRACT: return SDL_SCANCODE_KP_MINUS;
-        case KEY_ADD: return SDL_SCANCODE_KP_PLUS;
-        case KEY_DECIMAL: return SDL_SCANCODE_KP_PERIOD;
-        case KEY_KANA: return SDL_SCANCODE_LANG3;
-
-        //case KEY_CIRCUMFLEX: return SDL_SCANCODE_GRAVE;
-        case KEY_NUMPADEQUALS: return SDL_SCANCODE_KP_EQUALS;
-        case KEY_KANJI: return SDL_SCANCODE_LANG2;; // is it correct?
-
-        // KEY_NUMPADENTER: 
-        case KEY_RETURN: return SDL_SCANCODE_RETURN;
-
-        case KEY_NUMPADCOMMA: return SDL_SCANCODE_KP_COMMA;
-        case KEY_DIVIDE: return SDL_SCANCODE_KP_DIVIDE;
-        case KEY_SYSRQ: return SDL_SCANCODE_SYSREQ;
-        case KEY_HOME: return SDL_SCANCODE_HOME;
-        case KEY_UP: return SDL_SCANCODE_UP;
-        case KEY_PRIOR: return SDL_SCANCODE_PAGEUP;
-        case KEY_LEFT: return SDL_SCANCODE_LEFT;
-        case KEY_RIGHT: return SDL_SCANCODE_RIGHT;
-        case KEY_END: return SDL_SCANCODE_END;
-        case KEY_DOWN: return SDL_SCANCODE_DOWN;
-        case KEY_NEXT: return SDL_SCANCODE_PAGEDOWN;
-        case KEY_INSERT: return SDL_SCANCODE_INSERT;
-        case KEY_DELETE: return SDL_SCANCODE_DELETE;
-        case KEY_LWIN: return SDL_SCANCODE_LGUI;
-        case KEY_RWIN: return SDL_SCANCODE_RGUI;
-        case KEY_APPS: return SDL_SCANCODE_APPLICATION;
-        case KEY_NUMLOCK: return SDL_SCANCODE_NUMLOCKCLEAR;
-
-        //KEY_PAUSE: 
-        case KEY_STOP:return SDL_SCANCODE_PAUSE;
-
-                        // gos does not differentiate
-        //KEY_LCONTROL: 
-        case KEY_RCONTROL: return SDL_SCANCODE_LCTRL;
-
-        // KEY_LSHIFT
-        case KEY_RSHIFT: return SDL_SCANCODE_LSHIFT;
-
-        case KEY_LALT: return SDL_SCANCODE_LALT;
-        case KEY_RALT: return SDL_SCANCODE_RALT;
-        default:
-            PAUSE(("Unsupported KEY_*: %d\n", key_index));
-    };
+    for(const KeyMapping& m : g_key_mappings) {
+        if(m.key == key_index)
+            return m.scancode;
+    }
 
     return SDL_SCANCODE_UNKNOWN;
+}
+
+// the second scancode for KEY_* values that stand for both the left and the right key
+static SDL_Scancode right_hand_scancode(const gosEnum_KeyIndex key_index) {
+    switch(key_index) {
+        case KEY_LCONTROL: return SDL_SCANCODE_RCTRL;
+        case KEY_LSHIFT: return SDL_SCANCODE_RSHIFT;
+        case KEY_LMENU: return SDL_SCANCODE_RALT;
+        default: return SDL_SCANCODE_UNKNOWN;
+    }
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -390,8 +332,19 @@ gosEnum_KeyStatus __stdcall gos_GetKeyStatus(gosEnum_KeyIndex index)
         }
         SDL_Scancode sc = remap_gos_to_sdl((gosEnum_KeyIndex)(index & 0xFF));
         gosASSERT(sc>=0 && sc<sizeof(ki->last_state_)/sizeof(ki->last_state_[0]));
+        uint8_t status = ki->last_state_[sc];
 
-        return (gosEnum_KeyStatus)ki->last_state_[sc];
+        // KEY_LCONTROL/KEY_LSHIFT/KEY_LMENU mean either the left or the right key: report the most
+        // active of the two (held > pressed > released > free)
+        SDL_Scancode sc_right = right_hand_scancode((gosEnum_KeyIndex)(index & 0xFF));
+        if(sc_right != SDL_SCANCODE_UNKNOWN) {
+            static const int rank[] = { 0 /*FREE*/, 2 /*PRESSED*/, 3 /*HELD*/, 1 /*RELEASED*/ };
+            const uint8_t status_right = ki->last_state_[sc_right];
+            if(rank[status_right] > rank[status])
+                status = status_right;
+        }
+
+        return (gosEnum_KeyStatus)status;
     }
 
     return KEY_FREE;

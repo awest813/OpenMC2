@@ -104,6 +104,8 @@
 #include"mission.h"
 #endif
 
+#include"savegame.h"
+
 #define BRIDGE_OBJTYPE				448
 #define MINE1						60
 #define MINE2						251
@@ -3161,7 +3163,7 @@ long GameObjectManager::Load (PacketFilePtr file, long packetNum)
 			packetNum++;
 		}
 		else if ((packetSize == sizeof(GameObjectData)) ||
-				(packetSize == sizeof(MoverData)))
+				isSaveDataSize(SAVE_MoverData, packetSize))
 		{
 			STOP(("We saved a pure GameObject or Pure Mover in slot %d, packet %d",i,packetNum));
 		}
@@ -3288,11 +3290,11 @@ long GameObjectManager::Load (PacketFilePtr file, long packetNum)
 			}
 			curTurretNum++;
 		}
-		else if (packetSize == sizeof(GateData))
+		else if (isSaveDataSize(SAVE_GateData, packetSize))  // current layout, or old 64-bit Linux saves
 		{
 			//We have a Gate.
 			GateData data;
-			file->readPacket(packetNum,(MemoryPtr)(&data));
+			readSaveData(file, packetNum, SAVE_GateData, &data, sizeof(data));
 			packetNum++;
 
 			GatePtr obj = new Gate; 
@@ -3380,11 +3382,11 @@ long GameObjectManager::Load (PacketFilePtr file, long packetNum)
 			}
 			curCarnageNum++;
 		}
-		else if (packetSize == sizeof(MechData))
+		else if (isSaveDataSize(SAVE_MechData, packetSize))  // current layout, or old 64-bit Linux saves
 		{
 			//We have a BattleMech.
 			MechData data;
-			file->readPacket(packetNum,(MemoryPtr)(&data));
+			readSaveData(file, packetNum, SAVE_MechData, &data, sizeof(data));
 			packetNum++;
 
 			BattleMechPtr obj = new BattleMech; 
@@ -3407,11 +3409,11 @@ long GameObjectManager::Load (PacketFilePtr file, long packetNum)
 			}
 			curMechNum++;
 		}
-		else if (packetSize == sizeof(GroundVehicleData))
+		else if (isSaveDataSize(SAVE_GroundVehicleData, packetSize))  // current layout, or old 64-bit Linux saves
 		{
 			//We have a groundVehicle.
 			GroundVehicleData data;
-			file->readPacket(packetNum,(MemoryPtr)(&data));
+			readSaveData(file, packetNum, SAVE_GroundVehicleData, &data, sizeof(data));
 			packetNum++;
 
 			GroundVehiclePtr obj = new GroundVehicle; 
@@ -3434,11 +3436,11 @@ long GameObjectManager::Load (PacketFilePtr file, long packetNum)
 			}
 			curVehicleNum++;
 		}
-		else if (packetSize == sizeof(WeaponBoltData))
+		else if (isSaveDataSize(SAVE_WeaponBoltData, packetSize))  // current layout, or old 64-bit Linux saves
 		{
 			//We have a WeaponBolt.
 			WeaponBoltData data;
-			file->readPacket(packetNum,(MemoryPtr)(&data));
+			readSaveData(file, packetNum, SAVE_WeaponBoltData, &data, sizeof(data));
 			packetNum++;
 
 			WeaponBoltPtr obj = new WeaponBolt; 

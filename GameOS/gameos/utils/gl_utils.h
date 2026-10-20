@@ -26,7 +26,13 @@ struct Texture {
 
 uint32_t getTexFormatPixelSize(TexFormat fmt);
 
+// OpenGL debugging (debug context, synchronous debug output, glGetError checks, shader hot reload):
+// on in debug builds, off in release builds; the environment variable MC2_GL_DEBUG=1 (or 0)
+// overrides it
+bool gl_debug_enabled();
+
 #define CHECK_GL_ERROR \
+if (gl_debug_enabled()) \
 { \
    	GLenum err = glGetError();\
 	while(err != GL_NO_ERROR) \

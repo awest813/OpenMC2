@@ -44,16 +44,16 @@
 //---------------------------------------------------------------------------
 typedef struct _CommanderData
 {
-	long					id;
-	long					teamId;
+	int32_t					id;
+	int32_t					teamId;
 	MoverGroupData			groups[MAX_MOVERGROUPS];
 
 } CommanderData;
 
 typedef struct _StaticCommanderData
 {
-	long	numCommanders;
-	long	homeCommanderId;
+	int32_t	numCommanders;
+	int32_t	homeCommanderId;
 
 } StaticCommanderData;
 

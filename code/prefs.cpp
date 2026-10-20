@@ -40,6 +40,38 @@ extern volatile bool mc2UseAsyncMouse;		//Should mouse draw and update in separa
 
 extern DWORD gEnableDetailTexture;
 
+char UserPrefsDir[1024] = "." PATH_SEPARATOR;
+char UserOptionsPath[1024] = "options.cfg";
+char UserOrgPrefsPath[1024] = "orgprefs.cfg";
+
+void initUserPrefsPaths()
+{
+	static bool initialized = false;
+	if (initialized)
+		return;
+	initialized = true;
+
+	char userDataDir[1024] = {0};
+	if (!gos_GetUserDataDirectory(userDataDir, sizeof(userDataDir)))
+	{
+		SPEW(("PREFS", "No user data directory, keeping options.cfg in the install directory\n"));
+		return;
+	}
+
+	S_snprintf(UserPrefsDir, 1024, "%s" PATH_SEPARATOR, userDataDir);
+	S_snprintf(UserOptionsPath, 1024, "%soptions.cfg", UserPrefsDir);
+	S_snprintf(UserOrgPrefsPath, 1024, "%sorgprefs.cfg", UserPrefsDir);
+
+	// settings of earlier versions, which kept them in the install directory
+	if (!fileExists(UserOptionsPath) && fileExists("options.cfg") == 1)
+	{
+		CopyFile("options.cfg", UserOptionsPath, true);
+		if (!fileExists(UserOrgPrefsPath) && fileExists("orgprefs.cfg") == 1)
+			CopyFile("orgprefs.cfg", UserOrgPrefsPath, true);
+	}
+	SPEW(("PREFS", "options: %s\n", UserOptionsPath));
+}
+
 CPrefs::CPrefs() {
 	DigitalMasterVolume = 255;
 	MusicVolume = 64;
@@ -77,6 +109,10 @@ CPrefs::CPrefs() {
 	for (int i = 0; i < 10; i++ )
 		unitName[i][0] = 0;
 
+	stretchToFit = false;
+	vsync = 1;
+	maxFrameRate = 0;
+
 #if 0
 	FilterState = gos_FilterNone;
 	TERRAIN_TXM_SIZE = 64;
@@ -92,7 +128,7 @@ int CPrefs::load( const char* pFileName ) {
 	long result = 0;
 
 	FullPathFileName prefsPathname;
-	prefsPathname.init("./",pFileName,".cfg");
+	prefsPathname.init(UserPrefsDir,pFileName,".cfg");
 	FitIniFilePtr prefsFile = new FitIniFile;
 
 #ifdef _DEBUG
@@ -207,7 +243,7 @@ int CPrefs::load( const char* pFileName ) {
 			char blockName[64];
 			for ( int i = 0; i < 10; i++ )
 			{	
-				sprintf( blockName, "PlayerName%ld", i );
+				sprintf( blockName, "PlayerName%d", i );
 				result = prefsFile->readIdString( blockName, &playerName[i][0], 255 );
 
 				if ( result != NO_ERR && i == 0 )
@@ -217,11 +253,11 @@ int CPrefs::load( const char* pFileName ) {
 					break;
 				}
 
-				sprintf( blockName, "IPAddress%ld", i );
+				sprintf( blockName, "IPAddress%d", i );
 				result = prefsFile->readIdString( blockName, &ipAddresses[i][0], 255 );
 
 
-				sprintf( blockName, "UnitName%ld", i );
+				sprintf( blockName, "UnitName%d", i );
 				result = prefsFile->readIdString( blockName, &unitName[i][0], 255 );
 
 			}
@@ -273,6 +309,16 @@ int CPrefs::load( const char* pFileName ) {
 			if ( result != NO_ERR )
 				tutorials = true;
 
+			result = prefsFile->readIdBoolean( "StretchToFit", stretchToFit );
+			if ( result != NO_ERR )
+				stretchToFit = false;
+			result = prefsFile->readIdLong( "VSync", vsync );
+			if ( result != NO_ERR || vsync < -1 || vsync > 1 )
+				vsync = 1;
+			result = prefsFile->readIdLong( "MaxFrameRate", maxFrameRate );
+			if ( result != NO_ERR || maxFrameRate < 0 )
+				maxFrameRate = 0;
+
 		}
 
 	}
@@ -288,12 +334,11 @@ int CPrefs::load( const char* pFileName ) {
 }
 
 int CPrefs::save() {
-	char backupPath[256];
-	char originalPath[256];
+	char backupPath[1100];
+	char originalPath[1100];
 	
-	strcpy( originalPath, "options.cfg" );
-	strcpy( backupPath, originalPath );
-	strcat( backupPath,".old" );
+	S_snprintf( originalPath, sizeof(originalPath), "%s", UserOptionsPath );
+	S_snprintf( backupPath, sizeof(backupPath), "%s.old", originalPath );
 	_chmod(originalPath, _S_IWRITE);
 	_chmod(backupPath, _S_IWRITE);
 	remove(backupPath);
@@ -335,17 +380,20 @@ int CPrefs::save() {
 			result = prefsFile->writeIdLong("DisplayNumber",displayNumber);
 			result = prefsFile->writeIdLong("Brightness",gammaLevel);
 			result = prefsFile->writeIdBoolean( "useLeftRightMouseProfile", useLeftRightMouseProfile );
+			result = prefsFile->writeIdBoolean( "StretchToFit", stretchToFit );
+			result = prefsFile->writeIdLong( "VSync", vsync );
+			result = prefsFile->writeIdLong( "MaxFrameRate", maxFrameRate );
 			char blockName[64];
 			for ( int i = 0; i < 10; i++ )
 			{	
 				
-				sprintf( blockName, "PlayerName%ld", i );
+				sprintf( blockName, "PlayerName%d", i );
 				result = prefsFile->writeIdString( blockName, &playerName[i][0] );
 
-				sprintf( blockName, "UnitName%ld", i );
+				sprintf( blockName, "UnitName%d", i );
 				result = prefsFile->writeIdString( blockName, &unitName[i][0] );
 
-				sprintf( blockName, "IPAddress%ld", i );
+				sprintf( blockName, "IPAddress%d", i );
 				result = prefsFile->writeIdString( blockName, &ipAddresses[i][0] );
 
 			}
@@ -380,6 +428,10 @@ int CPrefs::save() {
 }
 
 int CPrefs::applyPrefs(bool applyRes) {
+	Environment.stretchToWindow = stretchToFit;
+	Environment.swapInterval = (int)vsync;
+	Environment.maxFrameRate = (int)maxFrameRate;
+
 	if (soundSystem) {
 		/*soundSystem doesn't seem to do anything*/
 		soundSystem->setDigitalMasterVolume(this->DigitalMasterVolume);

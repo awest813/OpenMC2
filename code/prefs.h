@@ -10,6 +10,14 @@
 #endif
 
 
+// options.cfg and orgprefs.cfg are kept in the user data directory (next to the save games), not in
+// the install directory, which may be read-only or shared. initUserPrefsPaths() sets these up and
+// copies the files over from the install directory the first time.
+extern char UserPrefsDir[];			// ends with a path separator
+extern char UserOptionsPath[];		// options.cfg
+extern char UserOrgPrefsPath[];		// orgprefs.cfg
+void initUserPrefsPaths();
+
 class CPrefs {
 public:
 	CPrefs();
@@ -61,6 +69,11 @@ public:
 
 	bool	saveTranscripts;
 	bool	tutorials;
+
+	// display (options.cfg only, no UI yet)
+	bool	stretchToFit;	// stretch the game's screen to the window instead of keeping its aspect ratio
+	long	vsync;			// 0 = off, 1 = on, -1 = adaptive
+	long	maxFrameRate;	// frame rate cap, 0 = none
 
 #if 0
 	long FilterState;

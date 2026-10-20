@@ -764,7 +764,7 @@ long Mission::render (void)
 {
 	if (active)
 	{
-		unsigned char tempAmbientLight[3];
+		unsigned char tempAmbientLight[3] = {0, 0, 0};
 		if (KillAmbientLight) {
 			tempAmbientLight[0] = eye->ambientRed;
 			tempAmbientLight[1] = eye->ambientGreen;
@@ -1531,8 +1531,8 @@ bool Mission::calcComplexDropZones (char* missionName, char dropZoneCID[MAX_MC_P
 	gosASSERT(result == NO_ERR);
 	if (numParts)
 		for (long i = 1; i < long(numParts + 1); i++) {
-			char partName[12];
-			sprintf(partName,"Part%d",i);
+			char partName[16];
+			snprintf(partName, sizeof(partName),"Part%ld",i);
 			
 			//------------------------------------------------------------------
 			// Find the object to load
@@ -2022,8 +2022,8 @@ void Mission::init (const char *missionName, long loadType, long dropZoneID, Stu
 		gosASSERT(result == NO_ERR);
 		if (numParts)
 			for (int i = 1; i < long(numParts + 1); i++) {
-				char partName[12];
-				sprintf(partName,"Part%d",i);
+				char partName[16];
+				snprintf(partName, sizeof(partName),"Part%d",i);
 				
 				//------------------------------------------------------------------
 				// Find the object to load
@@ -2322,7 +2322,7 @@ void Mission::init (const char *missionName, long loadType, long dropZoneID, Stu
 		for (long i = 1; i <= numWarriors; i++) 
 		{
 			char warriorName[12];
-			sprintf(warriorName,"Warrior%d",i);
+			snprintf(warriorName, sizeof(warriorName),"Warrior%ld",i);
 			
 			//-------------------------
 			// Find the warrior to load
@@ -2454,8 +2454,8 @@ void Mission::init (const char *missionName, long loadType, long dropZoneID, Stu
 		long bigAlternatives = 0;
 
 		for (int i = 1; i < long(numParts + 1); i++) {
-			char partName[12];
-			sprintf(partName,"Part%d",i);
+			char partName[16];
+			snprintf(partName, sizeof(partName),"Part%d",i);
 
 			result = missionFile->seekBlock(partName);
 			gosASSERT(result == NO_ERR);
@@ -2504,7 +2504,7 @@ void Mission::init (const char *missionName, long loadType, long dropZoneID, Stu
 		if (result == NO_ERR)
 			for (long i = 0; i < numSquads; i++) {
 				char s[128];
-				sprintf(s, "Squad%d", i);
+				sprintf(s, "Squad%ld", i);
 				unsigned long alternate = -1;
 				result = missionFile->readIdULong(s, alternate);
 				if (result == NO_ERR)
@@ -2516,8 +2516,8 @@ void Mission::init (const char *missionName, long loadType, long dropZoneID, Stu
 
 		for (int i = 1; i < long(numParts + 1); i++)
 		{
-			char partName[12];
-			sprintf(partName,"Part%d",i);
+			char partName[16];
+			snprintf(partName, sizeof(partName),"Part%d",i);
 			
 			//------------------------------------------------------------------
 			// Find the object to load
@@ -2555,7 +2555,7 @@ void Mission::init (const char *missionName, long loadType, long dropZoneID, Stu
 				result = missionFile->readIdULong("Pilot", realPilot);
 				gosASSERT(result == NO_ERR);
 
-				sprintf(partName, "Part%d", partId);
+				sprintf(partName, "Part%ld", partId);
 				result = missionFile->seekBlock(partName);
 				gosASSERT(result == NO_ERR);
 			}
@@ -2861,7 +2861,7 @@ void Mission::init (const char *missionName, long loadType, long dropZoneID, Stu
 		if (commandersToLoad[curCommanderId][0] == -1)
 			continue;
 
-		sprintf(headingStr, "Commander%dGroup:%d", curCommanderId, numGroups);
+		sprintf(headingStr, "Commander%ldGroup:%ld", curCommanderId, numGroups);
 		result = missionFile->seekBlock(headingStr);
 		while (result == NO_ERR) {
 			//---------------------------
@@ -2882,7 +2882,7 @@ void Mission::init (const char *missionName, long loadType, long dropZoneID, Stu
 			}
 			
 			numGroups++;
-			sprintf(headingStr, "Commander%dGroup:%d", curCommanderId, numGroups);
+			sprintf(headingStr, "Commander%ldGroup:%ld", curCommanderId, numGroups);
 			result = missionFile->seekBlock(headingStr);
 		}
 	}

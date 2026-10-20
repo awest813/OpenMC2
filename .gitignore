@@ -76,3 +76,6 @@ CMakeToolsMeta.in.txt
 CMakeToolsMeta.txt
 compile_commands.json
 
+
+# unit test fixtures (the "data" pattern above is for game data)
+!tests/data/

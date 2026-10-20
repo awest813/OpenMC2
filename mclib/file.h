@@ -68,6 +68,13 @@ long fileExists(const char *fName, long destination_mask = FILE_ON_DISK|FILE_ON_
 long fileExistsOnCD(const char *fName);
 bool file1OlderThan2(const char *file1, const char* file2);
 
+// Finds 'path' on a case sensitive file system when its case differs from the files on disk
+// (data files name assets in any case, e.g. "Data\Missions\Mc2_01.fit"). Each component that
+// does not exist as written is matched case-insensitively against its directory. 'out' gets the
+// resolved path, with unmatched components left as written; it has the same length as 'path'.
+// Returns true if the whole path exists. On Windows 'path' is copied unchanged.
+bool resolvePathCase(const char* path, char* out, size_t outSize);
+
 //---------------------------------------------------------------------------
 // Macro Definitions
 #ifndef	NO_ERR

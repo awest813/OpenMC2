@@ -60,5 +60,4 @@ include_directories(${COMMON_INCLUDE_DIRS} "../../GameOS/include" "../../mclib")
 
 add_library(mlr ${SOURCES})
 
-# cat MCLib.vcproj | grep ".cpp" | perl -pe 's/.+\"(\w+\.cpp)\".+/\1/g' >> CMakeLists.txt
 

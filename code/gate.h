@@ -127,13 +127,13 @@ typedef struct _GateData : public TerrainObjectData
 
 	bool					lastMarkedOpen;
 
-	MoverPtr				closestObject;
+	uint64_t				closestObject_unused;	// was a MoverPtr (meaningless after loading); keeps the save layout
 
 	DWORD					parentId;
 	GameObjectWatchID		parent;
-	long					buildingDescriptionID;
+	int32_t					buildingDescriptionID;
 
-	long					updatedTurn;
+	int32_t					updatedTurn;
 } GateData;
 
 class Gate : public TerrainObject

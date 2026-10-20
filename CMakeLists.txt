@@ -1,7 +1,15 @@
-cmake_minimum_required (VERSION 3.10)
+cmake_minimum_required (VERSION 3.16)
 # select GLVND versus legacy OpenGL libraries
 cmake_policy(SET CMP0072 NEW) # cmake --help-policy CMP0072
 project(mc2)
+
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
+
+# comma or semicolon separated list, e.g. -DMC2_SANITIZE=address,undefined
+set(MC2_SANITIZE "" CACHE STRING "Sanitizers to enable (GCC/Clang only), e.g. address,undefined")
+option(MC2_BUILD_TESTS "Build the unit tests (run with ctest)" ON)
 
 include(CMakeToolsHelpers OPTIONAL)
 
@@ -28,8 +36,24 @@ list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake/sdl2)
 #set(SDL2_DIR "${CMAKE_PREFIX_PATH}/cmake")
 
 if(NOT MSVC)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++0x -ggdb")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-unused-local-typedefs -Werror=array-bounds -Wno-switch -Wwrite-strings -Wno-unknown-warning-option -Wunused-variable -fpermissive") # -fsanitize=address -fno-omit-frame-pointer")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -ggdb")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-unused-local-typedefs -Werror=array-bounds -Wno-switch -Wwrite-strings -Wunused-variable")
+    if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-unknown-warning-option")
+    else()
+        # snprintf into fixed buffers truncates on purpose
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-format-truncation")
+    endif()
+    # code was written for x86 where char is signed; keep that on ARM & co.
+    if(NOT CMAKE_SYSTEM_PROCESSOR MATCHES "^(x86_64|AMD64|i.86|x86)$")
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsigned-char")
+        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fsigned-char")
+    endif()
+    if(MC2_SANITIZE)
+        string(REPLACE ";" "," MC2_SANITIZE_LIST "${MC2_SANITIZE}")
+        add_compile_options(-fsanitize=${MC2_SANITIZE_LIST} -fno-omit-frame-pointer)
+        add_link_options(-fsanitize=${MC2_SANITIZE_LIST})
+    endif()
 endif()
 # -Wno-unused-local-typedefs - to disable "typedef was ignored on this declaration"
 
@@ -43,7 +67,11 @@ endif()
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -D_ARMOR -D_DEBUG -DBUGLOG -DLAB_ONLY")
 #set(CMAKE_CXX_FLAGS_RELWITHDEBINFO" ${CMAKE_CXX_FLAGS_RELWITHDEBINFO} -DSOME_STUFF")
 if(MSVC)
-    set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /MTd /MP")
+    # vcpkg libraries use the DLL runtime (/MDd), so only force /MTd for the manual 3rdparty setup
+    if(NOT VCPKG_TOOLCHAIN)
+        set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /MTd")
+    endif()
+    set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /MP")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /MP")
     #set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /MP -DWINDOWS_IGNORE_PACKING_MISMATCH")
 endif()
@@ -118,6 +146,7 @@ set(SOURCES
     "code/mission2.cpp"
     "code/objective.cpp"
     "code/saveload.cpp"
+    "code/savegame.cpp"
     "code/trigger.cpp"
     "code/weather.cpp"
     "gui/aanimobject.cpp"
@@ -180,7 +209,7 @@ set(SOURCES
     )
 
 
-include_directories(${COMMON_INCLUDE_DIRS} "./mclib" "./gui" "./code" "./netlib")
+include_directories(${COMMON_INCLUDE_DIRS} "./mclib" "./gui" "./code")
 include_directories(${THIRDPARTY_INCLUDE_DIRS})
 include_directories(${THIRDPARTY_INTREE_DIR})
 
@@ -200,3 +229,8 @@ add_subdirectory("./res" "./out/res")
 add_subdirectory("./data_tools" "./out/data_tools")
 add_subdirectory("./text_tool" "./out/text_tool")
 add_subdirectory("./Viewer" "./out/Viewer")
+
+if(MC2_BUILD_TESTS)
+    enable_testing()
+    add_subdirectory("./tests" "./out/tests")
+endif()

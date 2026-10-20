@@ -636,13 +636,15 @@ long MOVE_saveData (PacketFile* packetFile, long whichPacket) {
 	long numGlobalMap1Packets = GlobalMoveMap[1]->write(packetFile, whichPacket + numMissionMapPackets + numGlobalMap0Packets);
 	long numGlobalMap2Packets = GlobalMoveMap[2]->write(packetFile, whichPacket + numMissionMapPackets + numGlobalMap0Packets + numGlobalMap1Packets);
 
-	long result = packetFile->writePacket(whichPacket + numMissionMapPackets + numGlobalMap0Packets + numGlobalMap1Packets + numGlobalMap2Packets, (unsigned char*)&tempNumSpecialAreas, sizeof(long));
+	// always 4 bytes like the original (Windows) data: sizeof(long) is 8 on 64-bit Linux
+	int32_t numSpecialAreas32 = (int32_t)tempNumSpecialAreas;
+	long result = packetFile->writePacket(whichPacket + numMissionMapPackets + numGlobalMap0Packets + numGlobalMap1Packets + numGlobalMap2Packets, (unsigned char*)&numSpecialAreas32, sizeof(int32_t));
 	if (result <= 0)
 		Fatal(result, " MOVE_saveData: Unable to write num special area ");
 	//-------------------------------------------------------------------------------------------------
 	// If there are no special areas, we just write the specialArea count as a filler for the packet...
 	if (tempNumSpecialAreas == 0)
-		result = packetFile->writePacket(whichPacket + numMissionMapPackets + numGlobalMap0Packets + numGlobalMap1Packets + numGlobalMap2Packets + 1, (unsigned char*)&tempNumSpecialAreas, sizeof(long));
+		result = packetFile->writePacket(whichPacket + numMissionMapPackets + numGlobalMap0Packets + numGlobalMap1Packets + numGlobalMap2Packets + 1, (unsigned char*)&numSpecialAreas32, sizeof(int32_t));
 	else
 		result = packetFile->writePacket(whichPacket + numMissionMapPackets + numGlobalMap0Packets + numGlobalMap1Packets + numGlobalMap2Packets + 1, (unsigned char*)tempSpecialAreaFootPrints, sizeof(GameObjectFootPrint) * tempNumSpecialAreas);
 	if (result <= 0)
@@ -718,16 +720,32 @@ long MOVE_readData (PacketFile* packetFile, long whichPacket) {
 		systemHeap->Free(GlobalMoveMap[2]->pathExistsTable);
 		GlobalMoveMap[2]->pathExistsTable = NULL;
 
-		long numBytes = packetFile->readPacket(whichPacket + numMissionMapPackets + numGlobalMap0Packets + numGlobalMap1Packets + numGlobalMap2Packets, (unsigned char*)&tempNumSpecialAreas);
+		// The count is 4 bytes, or 8 if it was saved by an older 64-bit Linux build (sizeof(long)).
+		// Check the size before reading: readPacket writes the whole packet into the buffer.
+		const long countPacket = whichPacket + numMissionMapPackets + numGlobalMap0Packets + numGlobalMap1Packets + numGlobalMap2Packets;
+		if (packetFile->seekPacket(countPacket) != NO_ERR)
+			Fatal(countPacket, " MOVE_readData: Unable to find num special areas ");
+		const long countSize = packetFile->getPacketSize();
+		if (countSize != 4 && countSize != 8)
+			Fatal(countSize, " MOVE_readData: Bad num special areas packet size ");
+		unsigned char countBuffer[8] = {0};
+		long numBytes = packetFile->readPacket(countPacket, countBuffer);
 		if (numBytes <= 0)
 			Fatal(numBytes, " MOVE_readData: Unable to read num special areas ");
+		int32_t numSpecialAreas32 = 0;
+		memcpy(&numSpecialAreas32, countBuffer, sizeof(int32_t)); // little endian: the low half of an 8 byte count
+		tempNumSpecialAreas = numSpecialAreas32;
 		if (tempSpecialAreaFootPrints) {
 			systemHeap->Free(tempSpecialAreaFootPrints);
 			tempSpecialAreaFootPrints = NULL;
 		}
 		if (tempNumSpecialAreas > 0) {
+			const long footPrintsPacket = countPacket + 1;
+			if (packetFile->seekPacket(footPrintsPacket) != NO_ERR ||
+				packetFile->getPacketSize() != (long)(sizeof(GameObjectFootPrint) * tempNumSpecialAreas))
+				Fatal(tempNumSpecialAreas, " MOVE_readData: Bad special area footprints packet ");
 			tempSpecialAreaFootPrints = (GameObjectFootPrint*)systemHeap->Malloc(sizeof(GameObjectFootPrint) * tempNumSpecialAreas);
-			numBytes = packetFile->readPacket(whichPacket + numMissionMapPackets + numGlobalMap0Packets + numGlobalMap1Packets + numGlobalMap2Packets + 1, (unsigned char*)tempSpecialAreaFootPrints);
+			numBytes = packetFile->readPacket(footPrintsPacket, (unsigned char*)tempSpecialAreaFootPrints);
 			if (numBytes <= 0)
 				Fatal(numBytes, " MOVE_readData: Unable to read num special areas ");
 		}
@@ -1633,13 +1651,13 @@ long GlobalMap::init (PacketFilePtr packetFile, long whichPacket) {
 	if (logEnabled && !blank) {
 		char s[256];
 		for (long i = 0; i < numDoors; i++) {
-			sprintf(s, "door %05d, %s(%d), areas %d & %d", i, doors[i].open ? "opened" : "CLOSED", doors[i].teamID, doors[i].area[0], doors[i].area[1]);
+			sprintf(s, "door %05ld, %s(%d), areas %d & %d", i, doors[i].open ? "opened" : "CLOSED", doors[i].teamID, doors[i].area[0], doors[i].area[1]);
 			log->write(s);
 			for (long side = 0; side < 2; side++) {
-				sprintf(s, "     side %d", side);
+				sprintf(s, "     side %ld", side);
 				log->write(s); 
 				for (long j = 0; j < doors[i].numLinks[side]; j++) {
-					sprintf(s, "          link %03d, to door %05d, cost %d",
+					sprintf(s, "          link %03ld, to door %05d, cost %d",
 						j,
 						doors_links[i][side][j].doorIndex,
 						doors_links[i][side][j].cost);
@@ -1660,7 +1678,7 @@ long GlobalMap::init (PacketFilePtr packetFile, long whichPacket) {
 			log->write(s);
 			for (long d = 0; d < areas[i].numDoors; d++) {
                 const DoorInfo& door = areas_doors[i][d];
-				sprintf(s, "     door %03d is %d (%d:%d & %d) ",
+				sprintf(s, "     door %03ld is %d (%d:%d & %d) ",
 					d, door.doorIndex, door.doorSide,
 					doors[door.doorIndex].area[0], doors[door.doorIndex].area[1]);
 				log->write(s);
@@ -3234,7 +3252,7 @@ void GlobalMap::setGoalDoor (long goalArea) {
 
 	if ((goalArea < 0) || (goalArea >= numAreas)) {
 		char errMsg[256];
-		sprintf(errMsg, " GlobalMap.setGoalDoor: bad goalArea (%d of %d) ", goalArea, numAreas);
+		sprintf(errMsg, " GlobalMap.setGoalDoor: bad goalArea (%ld of %d) ", goalArea, numAreas);
 		gosASSERT((goalArea >= 0) || (goalArea < numAreas));
 	}
 
@@ -3344,10 +3362,12 @@ inline void GlobalMap::propogateCost (long door, long cost, long fromAreaIndex, 
 			long openIndex = openList->find(door);
 			if (!openIndex) {
 				char s[128];
-				sprintf(s, "GlobalMap.propogateCost: Cannot find globalmap door [%d, %d, %d, %d] for change\n", door, cost, fromAreaIndex, g);
+				sprintf(s, "GlobalMap.propogateCost: Cannot find globalmap door [%ld, %ld, %ld, %ld] for change\n", door, cost, fromAreaIndex, g);
 				gosASSERT(openIndex != 0);
 			}
-			openList->change(door, curMapDoor->fPrime);
+			// change() takes the heap index, not the door id
+			if (openIndex)
+				openList->change(openIndex, curMapDoor->fPrime);
 			}
 		else {
 			long toAreaIndex = 1 - fromAreaIndex;
@@ -3413,7 +3433,7 @@ long GlobalMap::calcPath (long startArea,
 
 	if (logEnabled) {
 		char s[50];
-		sprintf(s, "     start = %d, goal = %d", startArea, goalArea);
+		sprintf(s, "     start = %ld, goal = %ld", startArea, goalArea);
 		log->write(s);
 		if (useClosedAreas)
 			log->write("     USE CLOSED AREAS");
@@ -3541,7 +3561,7 @@ long GlobalMap::calcPath (long startArea,
 		
 		if (logEnabled) {
 			char s[50];
-			sprintf(s, "     thruArea = %d, bestDoor = %d, numLinks = %d", thruArea, bestDoor, numLinks);
+			snprintf(s, sizeof(s), "     thruArea = %ld, bestDoor = %ld, numLinks = %ld", thruArea, bestDoor, numLinks);
 			log->write(s);
 		}
 		
@@ -3558,7 +3578,7 @@ long GlobalMap::calcPath (long startArea,
 
 			if (logEnabled) {
 				char s[50];
-				sprintf(s, "          %02d) succDoor = %d", curLink, succDoor);
+				sprintf(s, "          %02ld) succDoor = %ld", curLink, succDoor);
 				log->write(s);
 			}
 
@@ -3583,7 +3603,7 @@ long GlobalMap::calcPath (long startArea,
 
 			if (logEnabled) {
 				char s[50];
-				sprintf(s, "                  succDoorCost = %d", succDoorCost);
+				sprintf(s, "                  succDoorCost = %ld", succDoorCost);
 				log->write(s);
 			}
 
@@ -3612,13 +3632,15 @@ long GlobalMap::calcPath (long startArea,
 						long openIndex = openList->find(succDoor);
 						if (!openIndex) {
 							char s[128];
-							sprintf(s, "GlobalMap.calcPath: Cannot find globalmap door [%d, %d, %d, %d] for change\n", succDoor, curLink, succFromAreaIndex, succDoorCost);
+							sprintf(s, "GlobalMap.calcPath: Cannot find globalmap door [%ld, %ld, %ld, %ld] for change\n", succDoor, curLink, succFromAreaIndex, succDoorCost);
 #ifdef USE_OBJECTS
 							DebugOpenList(s);
 #endif
 							gosASSERT(openIndex != 0);
 						}
-						openList->change(openIndex, succMapDoor->fPrime);
+						// index 0 is the queue's sentinel, never change it
+						if (openIndex)
+							openList->change(openIndex, succMapDoor->fPrime);
 					}
 					}
 				else if (succMapDoor->flags & MOVEFLAG_CLOSED) {
@@ -3718,7 +3740,7 @@ long GlobalMap::calcPath (long startArea,
 #endif
 		if (logEnabled) {
 			char s[50];
-			sprintf(s, "     PATH FOUND: %d steps", numDoors);
+			sprintf(s, "     PATH FOUND: %ld steps", numDoors);
 			log->write(s);
 			log->write(" ");
 		}
@@ -3948,13 +3970,13 @@ bool GlobalMap::toggleLog (void) {
 		if (true) {
 			char s[256];
 			for (long i = 0; i < map->numDoors; i++) {
-				sprintf(s, "door %05d, %s(%d), areas %d & %d", i, map->doors[i].open ? "opened" : "CLOSED", map->doors[i].teamID, map->doors[i].area[0], map->doors[i].area[1]);
+				sprintf(s, "door %05ld, %s(%d), areas %d & %d", i, map->doors[i].open ? "opened" : "CLOSED", map->doors[i].teamID, map->doors[i].area[0], map->doors[i].area[1]);
 				log->write(s);
 				for (long side = 0; side < 2; side++) {
-					sprintf(s, "     side %d", side);
+					sprintf(s, "     side %ld", side);
 					log->write(s); 
 					for (long j = 0; j < map->doors[i].numLinks[side]; j++) {
-						sprintf(s, "          link %03d, to door %05d, cost %d",
+						sprintf(s, "          link %03ld, to door %05d, cost %d",
 							j,
 							map->doors_links[i][side][j].doorIndex,
 							map->doors_links[i][side][j].cost);
@@ -3975,7 +3997,7 @@ bool GlobalMap::toggleLog (void) {
 				log->write(s);
 				for (long d = 0; d < map->areas[i].numDoors; d++) {
                     const DoorInfo& di = map->areas_doors[i][d];
-					sprintf(s, "     door %03d is %d (%d:%d & %d) ",
+					sprintf(s, "     door %03ld is %d (%d:%d & %d) ",
 						d, di.doorIndex, di.doorSide,
 						map->doors[di.doorIndex].area[0], map->doors[di.doorIndex].area[1]);
 					log->write(s);
@@ -4839,7 +4861,7 @@ inline void MoveMap::propogateCost (long mapCellIndex, long cost, long g) {
 			long openIndex = openList->find(mapCellIndex);
 			if (!openIndex) {
 				char s[128];
-				sprintf(s, "MoveMap.propogateCost: Cannot find movemap node [%d] for change\n", mapCellIndex);
+				sprintf(s, "MoveMap.propogateCost: Cannot find movemap node [%ld] for change\n", mapCellIndex);
 				gosASSERT(openIndex != 0);
 				}
 			else
@@ -4917,7 +4939,7 @@ inline void MoveMap::propogateCostJUMP (long r, long c, long cost, long g) {
 			long openIndex = openList->find(r * MAX_MAPWIDTH + c);
 			if (!openIndex) {
 				char s[128];
-				sprintf(s, "MoveMap.propogateCost: Cannot find movemap node [%d, %d, %d] for change\n", r, c, r * MAX_MAPWIDTH + c);
+				sprintf(s, "MoveMap.propogateCost: Cannot find movemap node [%ld, %ld, %ld] for change\n", r, c, r * MAX_MAPWIDTH + c);
 				gosASSERT(openIndex != 0);
 				}
 			else
@@ -4998,7 +5020,7 @@ long MoveMap::calcPath (MovePathPtr path, Stuff::Vector3D* goalWorldPos, int* go
 		p.y = (Terrain::worldUnitsMapSide / 2) - ((float)(goalR) * Terrain::worldUnitsPerCell) - Terrain::worldUnitsPerCell / 2;
 		p.z = (float)0; // How do we get the elevation for this point? Do we care?
 		char msg[200];
-		sprintf(msg, " Bad Move Goal: %d [%d(%d), %d(%d)], (%.2f, %.2f, %.2f)", DebugMovePathType, goalR, height, goalC, width, p.x, p.y, p.z);
+		sprintf(msg, " Bad Move Goal: %ld [%d(%d), %d(%d)], (%.2f, %.2f, %.2f)", DebugMovePathType, goalR, height, goalC, width, p.x, p.y, p.z);
 		//sebi:
 		//gosASSERT((goalR >= 0) && (goalR < height) && (goalC >= 0) && (goalC < width));
 	}
@@ -5483,7 +5505,7 @@ long MoveMap::calcPathJUMP (MovePathPtr path, Stuff::Vector3D* goalWorldPos, int
 		p.y = (Terrain::worldUnitsMapSide / 2) - ((float)(goalR) * Terrain::worldUnitsPerCell) - Terrain::worldUnitsPerCell / 2;
 		p.z = (float)0; // How do we get the elevation for this point? Do we care?
 		char msg[200];
-		sprintf(msg, " Bad Move Goal: %d [%d(%d), %d(%d)], (%.2f, %.2f, %.2f)", DebugMovePathType, goalR, height, goalC, width, p.x, p.y, p.z);
+		sprintf(msg, " Bad Move Goal: %ld [%d(%d), %d(%d)], (%.2f, %.2f, %.2f)", DebugMovePathType, goalR, height, goalC, width, p.x, p.y, p.z);
 		gosASSERT((goalR >= 0) && (goalR < height) && (goalC >= 0) && (goalC < width));
 	}
 
@@ -6121,7 +6143,7 @@ long MoveMap::calcEscapePath (MovePathPtr path, Stuff::Vector3D* goalWorldPos, l
 								long openIndex = openList->find(succRow * MAX_MAPWIDTH + succCol);
 								if (!openIndex) {
 									char s[128];
-									sprintf(s, "MoveMap.calcEscapePath: Cannot find movemap node [%d, %d, %d, %d] for change\n", succRow, succCol, succRow * MAX_MAPWIDTH + succCol, dir);
+									sprintf(s, "MoveMap.calcEscapePath: Cannot find movemap node [%ld, %ld, %ld, %ld] for change\n", succRow, succCol, succRow * MAX_MAPWIDTH + succCol, dir);
 #ifdef USE_OBJECTS
 									DebugOpenList(s);
 #endif
@@ -6398,7 +6420,7 @@ void MoveMap::writeDebug (File* debugFile) {
 	debugFile->writeString("-------\n");
 	for (long r = 0; r < height; r++) {
 		outString[0] = '\0';
-		char numStr[10];
+		char numStr[16];
 		for (long c = 0; c < width; c++) {
 			/*if ((goalR == r) && (goalC == c))
 				sprintf(numStr, "G");
@@ -6422,7 +6444,7 @@ void MoveMap::writeDebug (File* debugFile) {
 	debugFile->writeString("-------\n");
 	for (int r = 0; r < height; r++) {
 		outString[0] = '\0';
-		char numStr[10];
+		char numStr[16];
 		for (long c = 0; c < width; c++) {
 			if ((goalR == r) && (goalC == c))
 				sprintf(numStr, "G");
@@ -6445,7 +6467,7 @@ void MoveMap::writeDebug (File* debugFile) {
 	debugFile->writeString("-------\n");
 	for (int r = 0; r < height; r++) {
 		outString[0] = '\0';
-		char numStr[10];
+		char numStr[16];
 		for (long c = 0; c < width; c++) {
 			if ((goalR == r) && (goalC == c))
 				sprintf(numStr, "G");
@@ -6458,7 +6480,7 @@ void MoveMap::writeDebug (File* debugFile) {
 			else if (map[r * maxWidth + c].cost >= COST_BLOCKED)
 				sprintf(numStr, " ");
 			else			
-				sprintf(numStr, "%d", map[r * maxWidth + c].cost);
+				snprintf(numStr, sizeof(numStr), "%d", map[r * maxWidth + c].cost);
 			strcat(outString, numStr);
 		}
 		strcat(outString, "\n");

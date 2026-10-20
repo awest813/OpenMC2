@@ -33,6 +33,7 @@
 #endif
 
 #include"team.h"
+#include"savegame.h"
 
 #include<stdio.h>
 
@@ -209,7 +210,7 @@ long Commander::Save (PacketFilePtr file, long packetNum)
 long Commander::Load (PacketFilePtr file, long packetNum)
 {
 	StaticCommanderData staticData;
-	file->readPacket(packetNum,(MemoryPtr)&staticData);
+	readSaveData(file, packetNum, SAVE_StaticCommanderData, &staticData, sizeof(staticData));
 	packetNum++;
 
 	numCommanders = staticData.numCommanders;
@@ -217,7 +218,7 @@ long Commander::Load (PacketFilePtr file, long packetNum)
 	for (long i=0;i<numCommanders;i++)
 	{
 		CommanderData data;
-		file->readPacket(packetNum,(MemoryPtr)&data);
+		readSaveData(file, packetNum, SAVE_CommanderData, &data, sizeof(data));
 		packetNum++;
 
 		commanders[i] = new Commander;

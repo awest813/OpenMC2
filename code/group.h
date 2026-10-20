@@ -65,8 +65,8 @@ typedef struct _GoalMapNode {
 
 typedef struct _MoverGroupData
 {
-	long					id;
-	long					numMovers;
+	int32_t					id;
+	int32_t					numMovers;
 	GameObjectWatchID		moverWIDs[MAX_MOVERGROUP_COUNT];
 	GameObjectWatchID		pointWID;
 	bool					disbandOnNoPoint;

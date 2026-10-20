@@ -1509,7 +1509,9 @@ class MultiPlayer {
 		// for write purposes....
 		MC2Player* getPlayerInfo( long commanderID )
 		{
-			return NULL;
+			if (commanderID < 0 || commanderID >= MAX_MC_PLAYERS)
+				return NULL;
+			return &playerInfo[commanderID];
 		}
 
 		bool hostSession(char* sessionName, char* playerName, long mxPlayers);
@@ -1585,7 +1587,9 @@ class MultiPlayer {
 		void initSpecialBuildings (char commandersToLoad[8][3]);
 
 		char* getPlayerName (void) {
-			return(NULL);
+			// callers print it with %s, never return NULL
+			MC2Player* info = getPlayerInfo(commanderID);
+			return(info ? info->name : (char*)"");
 		}
 
 		void addToLocalMovers (MoverPtr mover);

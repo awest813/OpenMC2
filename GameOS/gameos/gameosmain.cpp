@@ -10,6 +10,8 @@
 #include "utils/shader_builder.h"
 #include "utils/gl_utils.h"
 #include "utils/timing.h"
+#include "utils/viewport.h"
+#include <limits.h>
 
 #include <signal.h>
 
@@ -108,7 +110,7 @@ static void process_events( void ) {
             break;
         case SDL_MOUSEBUTTONDOWN:
         case SDL_MOUSEBUTTONUP:
-            //input::handleMouseButton(&event);
+            input::handleMouseButton(&event);
             break;
         case SDL_MOUSEWHEEL:
             input::handleMouseWheel(&event);
@@ -125,13 +127,30 @@ extern bool g_disable_quads;
 static void draw_screen( void )
 {
     g_disable_quads = false;
+
+    // the window may have been resized or moved to a display with different scaling
+    graphics::get_drawable_size(gos_GetWindow(), &Environment.drawableWidth, &Environment.drawableHeight);
+    const int drawable_w = Environment.drawableWidth;
+    const int drawable_h = Environment.drawableHeight;
+
+    // the game renders at its own (logical) resolution, fit it into the window keeping the aspect
+    // ratio unless asked to stretch
+    const presentation::Rect vp = presentation::compute_viewport(Environment.screenWidth, Environment.screenHeight,
+            drawable_w, drawable_h, Environment.stretchToWindow);
+
+    // clear the whole window (black bars), then keep all rendering, including clears, inside the viewport
+    glDisable(GL_SCISSOR_TEST);
+    glViewport(0, 0, drawable_w, drawable_h);
+    glDepthMask(GL_TRUE);
     glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
     glCullFace(GL_FRONT);
     //CHECK_GL_ERROR;
-    
-	const int viewport_w = Environment.drawableWidth;
-	const int viewport_h = Environment.drawableHeight;
-    glViewport(0, 0, viewport_w, viewport_h);
+
+    // GL's origin is bottom left
+    const int vp_y = drawable_h - (vp.y + vp.h);
+    glViewport(vp.x, vp_y, vp.w, vp.h);
+    glScissor(vp.x, vp_y, vp.w, vp.h);
+    glEnable(GL_SCISSOR_TEST);
 
     CHECK_GL_ERROR;
 
@@ -142,6 +161,8 @@ static void draw_screen( void )
     gos_RendererBeginFrame();
     Environment.UpdateRenderers();
     gos_RendererEndFrame();
+
+    glDisable(GL_SCISSOR_TEST);
 
     glUseProgram(0);
     //CHECK_GL_ERROR;
@@ -183,6 +204,7 @@ int main(int argc, char** argv)
 
     graphics::RenderWindowHandle win = gos_GetWindow();
     graphics::RenderContextHandle ctx = gos_GetRenderContext();
+    int applied_swap_interval = INT_MIN;
 
     while( !g_exit ) {
 
@@ -203,10 +225,26 @@ int main(int argc, char** argv)
         gos_UpdateAudio();
 
         graphics::make_current_context(ctx);
+        if(Environment.swapInterval != applied_swap_interval) {
+            graphics::set_swap_interval(Environment.swapInterval);
+            applied_swap_interval = Environment.swapInterval;
+        }
         draw_screen();
         graphics::swap_window(win);
 
         g_exit |= gosExitGameOS();
+
+        // optional frame rate cap: sleep most of the remaining frame time, spin the last bit
+        if(Environment.maxFrameRate > 0) {
+            const double frame_sec = 1.0 / Environment.maxFrameRate;
+            for(;;) {
+                const double remaining = frame_sec - timing::ticks2sec(timing::gettickcount() - start_tick);
+                if(remaining <= 0.0)
+                    break;
+                if(remaining > 0.002)
+                    SDL_Delay((Uint32)((remaining - 0.001) * 1000.0));
+            }
+        }
 
 		uint64_t end_tick = timing::gettickcount();
 		double dt_sec = timing::ticks2sec(end_tick - start_tick);

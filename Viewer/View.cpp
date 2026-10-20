@@ -394,7 +394,7 @@ void __stdcall InitializeGameEngine()
 				memset(fastFiles,0,maxFastFiles*sizeof(FastFile *));
 
 				int fileNum = 0;
-				char fastFileId[10];
+				char fastFileId[16];
 				char fileName[100];
 				sprintf(fastFileId,"File%d",fileNum);
 	
@@ -405,7 +405,7 @@ void __stdcall InitializeGameEngine()
 						STOP(("Unable to startup fastfiles.  Probably an old one in the directory!!"));
 
 					fileNum++;
-					sprintf(fastFileId,"File%d",fileNum);
+					snprintf(fastFileId, sizeof(fastFileId),"File%d",fileNum);
 				}
 			}
 		}
@@ -807,6 +807,7 @@ void __stdcall GetGameOSEnvironment( const char* CommandLine )
 
 	
 	Environment.screenWidth = 800;
+	Environment.swapInterval = 1;
 	Environment.screenHeight = 600;
 }
 

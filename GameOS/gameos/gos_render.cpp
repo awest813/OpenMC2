@@ -9,6 +9,7 @@
 #include <GL/glew.h>
 #include <GL/gl.h>
 #include "utils/logging.h"
+#include "utils/gl_utils.h"
 
 // FIXME: think how to make it better when different parts need window
 SDL_Window* g_sdl_window = NULL;
@@ -18,7 +19,6 @@ namespace graphics {
 static bool VERBOSE_VIDEO = true;
 static bool VERBOSE_RENDER = true;
 static bool VERBOSE_MODES = true;
-static bool ENABLE_VSYNC = true;
 
 struct RenderWindow {
     SDL_Window* window_;
@@ -95,7 +95,8 @@ RenderWindow* create_window(
     SDL_GL_SetAttribute( SDL_GL_GREEN_SIZE, 8 );
     SDL_GL_SetAttribute( SDL_GL_BLUE_SIZE, 8 );
     SDL_GL_SetAttribute( SDL_GL_ALPHA_SIZE, 8);
-    SDL_GL_SetAttribute( SDL_GL_DEPTH_SIZE, 16 );
+    // 16 bits z-fights at today's resolutions
+    SDL_GL_SetAttribute( SDL_GL_DEPTH_SIZE, 24 );
     SDL_GL_SetAttribute( SDL_GL_DOUBLEBUFFER, 1 );
 
     SDL_GL_SetAttribute(SDL_GL_ACCELERATED_VISUAL, 1);
@@ -110,19 +111,21 @@ RenderWindow* create_window(
     // COMPATIBILITY, ES,...
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
     //SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_COMPATIBILITY);
+    // 4.2 to match the GLSL version the shaders are compiled with (#version 420)
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 4);
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 0);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 2);
 
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, SDL_GL_CONTEXT_DEBUG_FLAG);
+    // a debug context is slower: only when debugging GL (debug builds or MC2_GL_DEBUG=1)
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, gl_debug_enabled() ? SDL_GL_CONTEXT_DEBUG_FLAG : 0);
 	//SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, GL_CONTEXT_FLAG_DEBUG_BIT);
 
     // some defaults just to shut up static analyzer
-    SDL_DisplayMode preferred_mode = {
-        .format = SDL_PIXELFORMAT_RGB888,            /**< pixel format */
-        .w = 800,
-        .h = 600,                      /**< height, in screen coordinates */
-        .refresh_rate = 0           /**< refresh rate (or zero for unspecified) */
-    };
+    // (no designated initializers: MSVC requires C++20 for them)
+    SDL_DisplayMode preferred_mode = {};
+    preferred_mode.format = SDL_PIXELFORMAT_RGB888;  /**< pixel format */
+    preferred_mode.w = 800;
+    preferred_mode.h = 600;                          /**< height, in screen coordinates */
+    preferred_mode.refresh_rate = 0;                 /**< refresh rate (or zero for unspecified) */
 
     if (VERBOSE_MODES) {
         SDL_DisplayMode mode;
@@ -166,7 +169,7 @@ RenderWindow* create_window(
                     }
                     SDL_PixelFormatEnumToMasks(mode.format, &bpp, &Rmask, &Gmask, &Bmask, &Amask);
                     fprintf(stderr, "    Mode %d: %dx%d@%dHz, %d bits-per-pixel (%s)\n",
-                            j, mode.w, mode.h, mode.refresh_rate, bpp,
+                            mode_idx, mode.w, mode.h, mode.refresh_rate, bpp,
                             SDL_GetPixelFormatName(mode.format));
                     if (Rmask || Gmask || Bmask) {
                         fprintf(stderr, "        Red Mask   = 0x%.8x\n",
@@ -224,14 +227,10 @@ RenderWindow* create_window(
 
     //Some info about fullscreen/win size issues: https://github.com/libsdl-org/SDL/issues/8544
 
-    // take care about DPI (not necessary if using SDL_WINDOW_FULLSCREEN_DESKTOP, as window size will have
-    // a DPI-aware size after creation
-    float dpi = 96.0f;
-    if (SDL_GetDisplayDPI(display_index, &dpi, nullptr, nullptr) == 0) {
-        fprintf(stdout, "Display%d DPI: %f\n", display_index, dpi);
-        preferred_mode.w = preferred_mode.w * (dpi / 96);
-        preferred_mode.h = preferred_mode.h * (dpi / 96);
-    }
+    // No manual DPI scaling of the window size: with SDL_WINDOW_ALLOW_HIGHDPI the OS scales (and the
+    // drawable gets more pixels) where display scaling is set up, multiplying again made the window
+    // too big there. The window is resized to the game's resolution anyway once it sets its mode, and
+    // the image is fitted into whatever drawable size results.
 
     {
         window = SDL_CreateWindow(pwinname ? pwinname : "--", 
@@ -262,7 +261,7 @@ RenderWindow* create_window(
     rw->window_ = window;
     rw->width_ = preferred_mode.w;
     rw->height_ = preferred_mode.h;
-    rw->dpi_scale_ = dpi / 96;
+    rw->dpi_scale_ = 1; // not used: HiDPI is handled by SDL (drawable size)
 
     g_sdl_window = window;
 
@@ -294,11 +293,8 @@ RenderContextHandle init_render_context(RenderWindowHandle render_window)
         return NULL;
     } 
 
-    if (ENABLE_VSYNC) {
-        SDL_GL_SetSwapInterval(1);
-    } else {
-        SDL_GL_SetSwapInterval(0);
-    }
+    // the game's setting (Environment.swapInterval) is applied by the main loop
+    set_swap_interval(1);
 
     if(VERBOSE_RENDER) {
         SDL_DisplayMode mode;
@@ -309,8 +305,8 @@ RenderContextHandle init_render_context(RenderWindowHandle render_window)
         printf("Vendor     : %s\n", glGetString(GL_VENDOR));
         printf("Renderer   : %s\n", glGetString(GL_RENDERER));
         printf("Version    : %s\n", glGetString(GL_VERSION));
-        const GLubyte* exts = glGetString(GL_EXTENSIONS);
-        printf("Extensions : %s\n", exts);
+        // glGetString(GL_EXTENSIONS) is not valid in a core profile context
+        printf("GLSL       : %s\n", glGetString(GL_SHADING_LANGUAGE_VERSION));
         printf("\n");
 
         int value;
@@ -423,6 +419,16 @@ bool resize_window(RenderWindowHandle rw_handle, int width, int height)
     rw->height_ = height;
 
     return true;
+}
+
+//==============================================================================
+// 0 = off, 1 = vsync, -1 = adaptive vsync (falls back to normal vsync if unsupported)
+void set_swap_interval(int interval)
+{
+    if (SDL_GL_SetSwapInterval(interval) != 0 && interval < 0) {
+        log_info("Adaptive vsync not supported (%s), using vsync\n", SDL_GetError());
+        SDL_GL_SetSwapInterval(1);
+    }
 }
 
 //==============================================================================

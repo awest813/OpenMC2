@@ -416,9 +416,9 @@ typedef struct _InventoryItem {
 #define	MAX_AMMO_TYPES			10
 
 typedef struct _AmmoTally {
-	long				masterId;		// ammo type's Master Component Id
-	long				curAmount;		// current amount of this ammo type in inventory
-	long				maxAmount;		// starting amount of this ammo type in inventory
+	int32_t				masterId;		// ammo type's Master Component Id
+	int32_t				curAmount;		// current amount of this ammo type in inventory
+	int32_t				maxAmount;		// starting amount of this ammo type in inventory
 } AmmoTally;
 
 typedef AmmoTally* AmmoTallyPtr;

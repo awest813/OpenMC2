@@ -6,7 +6,8 @@
 #include "utils/vec.h"
 
 static const DWORD INVALID_AUDIO_ID = -1;
-static const DWORD MAX_VOLUME = 254;
+// SDL_mixer volumes go from 0 to MIX_MAX_VOLUME (128)
+static const DWORD MAX_VOLUME = MIX_MAX_VOLUME;
 
 class gosAudio {
 
@@ -175,9 +176,16 @@ bool SoundEngine::init(int frequency, bool b_fmt_16_bit, bool b_fmt_signed, bool
     channels_ = b_stereo ? 2 : 1;
     chunksize_ = 1024;
 
+    memset(&channel_info_, 0, sizeof(channel_info_));
+    for(int i=0;i<NUM_CHANNELS;++i) {
+        channel_info_[i].ePlayMode = gosAudio_Stop;
+    }
+
     int rv = Mix_OpenAudio(frequency_, format_, channels_, chunksize_);
     if(rv == -1) {
-        PAUSE(("Failed to initialize SoundEngine: Mix_OpenAudio: %s\n", Mix_GetError()));
+        // keep going without sound: SDL_mixer calls fail gracefully when no device is open
+        SPEW(("AUDIO", "Failed to initialize SoundEngine: Mix_OpenAudio: %s. Sound is disabled.\n", Mix_GetError()));
+        return false;
     }
 
 
@@ -228,13 +236,7 @@ bool SoundEngine::init(int frequency, bool b_fmt_16_bit, bool b_fmt_signed, bool
     }
 #endif
 
-    memset(&channel_info_, 0, sizeof(channel_info_));
-    for(int i=0;i<NUM_CHANNELS;++i) {
-        channel_info_[i].ePlayMode = gosAudio_Stop;
-        //Mix_Volume(i, 127);
-    }
-
-    return rv == -1 ? false : true;
+    return true;
 }
 
 void SoundEngine::update() {
@@ -531,16 +533,16 @@ void __stdcall gosAudio_DestroyResource( HGOSAUDIO* hgosaudio )
 
     *hgosaudio = NULL;
 
+    // stop every channel still using it, then free it (it used to be freed only when it was assigned
+    // to a channel, otherwise it stayed allocated until the sound engine shut down)
     for(int i=0; i<g_sound_engine->NUM_CHANNELS;++i) {
         if(pci[i].hAudio == audio) {
             Mix_HaltChannel(i);
             pci[i].hAudio = NULL;
             pci[i].ePlayMode = gosAudio_Stop;
-
-            g_sound_engine->deleteAudio(audio);
-            break;
         }
     }
+    g_sound_engine->deleteAudio(audio);
 }
 
 HGOSSTREAMEDAUDIO gosAudio_CreateStreamedResource(const gosAudio_Format* ga_wf)
@@ -671,7 +673,7 @@ void __stdcall gosAudio_GetChannelSlider( int Channel, enum gosAudio_Properties 
     switch(prop) {
         case gosAudio_Common: break; //?
         case gosAudio_Volume: *value1 = ci->fVolume; break;
-        case gosAudio_Panning: *value1 = ci->fPanning; // -1 ... +1
+        case gosAudio_Panning: *value1 = ci->fPanning; break; // -1 ... +1
         case gosAudio_Frequency:
         {
             PAUSE(("Cannot change frequency on a specific channel\n"));
@@ -703,7 +705,6 @@ void __stdcall gosAudio_SetChannelPlayMode( int Channel, enum gosAudio_PlayMode 
             if(audio) {
                 int loops = ci->ePlayMode == gosAudio_Loop  ? -1 : 0;
                 Mix_PlayChannel(Channel, &audio->mix_chunk_, loops);
-                printf("Mix_PlayChannel(%d)\n", Channel);
             }
             break;
         }

@@ -18,6 +18,8 @@ int                 get_window_bpp          (RenderWindowHandle rw_handle);
 // may be different than window size (e.g. when switching to fullscreen)
 void                get_drawable_size       (RenderWindowHandle rw_handle, int* width, int* height);
 void                swap_window             (RenderWindowHandle h);
+// 0 = off, 1 = vsync, -1 = adaptive vsync (falls back to vsync)
+void                set_swap_interval       (int interval);
 void                destroy_window          (RenderWindowHandle rw_handle);
 void                grab_window             (RenderWindowHandle h, bool b_grab);
 bool                set_window_fullscreen   (RenderWindowHandle rw_handle, bool fullscreen);

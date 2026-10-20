@@ -863,7 +863,7 @@ void Gate::CopyTo (GateData *data)
 
 	data->lastMarkedOpen = lastMarkedOpen;
 
-	data->closestObject = closestObject;
+	data->closestObject_unused = 0;
 
 	data->parentId = parentId;
 	data->parent = parent;
@@ -892,7 +892,8 @@ void Gate::Load (GateData *data)
 
 	lastMarkedOpen = data->lastMarkedOpen;
 
-	closestObject = data->closestObject;
+	// a pointer saved by an earlier run is meaningless; it is re-found by the next collision check
+	closestObject = NULL;
 
 	parentId = data->parentId;
 	parent = data->parent;
