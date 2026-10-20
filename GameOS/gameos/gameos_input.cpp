@@ -3,6 +3,7 @@
 #include <SDL2/SDL.h> // can avoid inluding this here if move MouseInfo struct to separate file
 #include "gos_input.h"
 #include "utils/vec.h"
+#include "utils/viewport.h"
 
 #include<string.h>
 
@@ -27,20 +28,36 @@
 // You may pass zero as any parameter you do not wish to query
 //
 ////////////////////////////////////////////////////////////////////////////////
+extern SDL_Window* g_sdl_window;
 void __stdcall gos_GetMouseInfo( float* pXPosition, float* pYPosition, int* pXDelta, int* pYDelta, int* pWheelDelta, DWORD* pButtonsPressed )
 {
-    //const float w = (float)Environment.screenWidth;
-    //const float h = (float)Environment.screenHeight;
-
-    const float w = (float)Environment.drawableWidth;
-    const float h = (float)Environment.drawableHeight;
-
     const input::MouseInfo* mi = input::getMouseInfo();
 
+    // SDL reports the mouse in window coordinates; the game's screen is drawn into a viewport of the
+    // drawable (which has more pixels than the window on HiDPI displays, and may have black bars)
+    int window_w = 0, window_h = 0;
+    if(g_sdl_window)
+        SDL_GetWindowSize(g_sdl_window, &window_w, &window_h);
+    const int drawable_w = Environment.drawableWidth;
+    const int drawable_h = Environment.drawableHeight;
+    const int logical_w = Environment.screenWidth > 0 ? Environment.screenWidth : drawable_w;
+    const int logical_h = Environment.screenHeight > 0 ? Environment.screenHeight : drawable_h;
+    const presentation::Rect vp = presentation::compute_viewport(logical_w, logical_h, drawable_w, drawable_h,
+            Environment.stretchToWindow);
+
+    float x = 0.0f, y = 0.0f;
+    presentation::window_to_viewport(mi->x_, mi->y_, window_w, window_h, drawable_w, drawable_h, vp, &x, &y);
     if(pXPosition)
-        *pXPosition = mi->x_ / w;
+        *pXPosition = x;
     if(pYPosition)
-        *pYPosition = mi->y_ / h;
+        *pYPosition = y;
+
+    // deltas in the game's (logical) pixels
+    float scale_x = 1.0f, scale_y = 1.0f;
+    presentation::window_to_logical_scale(window_w, window_h, drawable_w, drawable_h, vp, logical_w, logical_h,
+            &scale_x, &scale_y);
+    const float w = (float)logical_w;
+    const float h = (float)logical_h;
 
 	// as percentage of screen size
     
@@ -52,9 +69,9 @@ void __stdcall gos_GetMouseInfo( float* pXPosition, float* pYPosition, int* pXDe
         *pYDelta = (int)(100.0f * clamp(mi->rel_y_ / h, -1.0f, 1.0f));
         */
     if(pXDelta)
-        *pXDelta = (int)(clamp(mi->rel_x_, -w, w));
+        *pXDelta = (int)(clamp(mi->rel_x_ * scale_x, -w, w));
     if(pYDelta)
-        *pYDelta = (int)(clamp(mi->rel_y_, -h, h));
+        *pYDelta = (int)(clamp(mi->rel_y_ * scale_y, -h, h));
 
     //if(pWheelDelta)
     //  *pWheelDelta = (int)(100.0f * (mi->wheel_vert_ / h));
@@ -74,7 +91,6 @@ void __stdcall gos_GetMouseInfo( float* pXPosition, float* pYPosition, int* pXDe
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-extern SDL_Window* g_sdl_window;
 void __stdcall gos_SetMousePosition( float XPosition, float YPosition )
 {
     if(g_sdl_window) {

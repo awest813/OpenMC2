@@ -2733,6 +2733,9 @@ void __stdcall GetGameOSEnvironment(const char* CommandLine )
 	Environment.displayIndex            = 0;
 	Environment.bitDepth				= 16;
 	Environment.fullScreen				= 0;
+	Environment.stretchToWindow			= false;	// overridden by options.cfg (CPrefs::applyPrefs)
+	Environment.swapInterval			= 1;
+	Environment.maxFrameRate			= 0;
 
 #ifndef LINUX_BUILD
 	HKEY hKey;

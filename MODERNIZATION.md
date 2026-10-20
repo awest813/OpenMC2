@@ -52,6 +52,11 @@ The plan below fixes these in that order, so that the project always stays shipp
 | 1.6 Engine | ✅ pathfinding `change(door)`, ABL group NULL derefs, order flags, `getFileMTime`, special area packet size |
 | 1.7 Overflows & formats | ✅ 65 `-Wformat-overflow` sites, 433 printf length mismatches, plus bugs found on the way (infowindow `inventory[-1]`, Clang-only waypoint key bug, missing virtual dtor). Warnings 679 → 140 |
 | 1.8 Struct layout | ✅ `tests/test_struct_layout.cpp`: compile-time size checks for data file and save game structs on all CI platforms |
+| **Phase 2** | |
+| 2.1 Window, HiDPI, aspect ratio | ✅ Logical resolution fitted into the drawable with black bars (`StretchToFit` to stretch), drawable size re-read every frame (window resizing, display scaling), no manual DPI multiply, HiDPI/letterbox-correct mouse position and deltas |
+| 2.4 Frame pacing | ✅ `VSync` (off/on/adaptive) and `MaxFrameRate` in options.cfg, frame limiter (sleep + short spin) |
+| 2.6 Depth buffer | ✅ 24-bit |
+| 2.2/2.3 Arbitrary resolutions, UI scaling · 2.5 fixed timestep · MSAA/anisotropic options | ⏳ Not started: need in-game testing with data (UI layouts, gameplay timing) |
 | Open: save game layout | ⚠️ `TeamStaticData`, `TeamData`, `StaticCommanderData`, `CommanderData`, `GateData`, and via `WeaponShotInfo` also `MoverData`/`MechData`/`GroundVehicleData`/`WeaponBoltData` (confirmed by the size checks in Windows CI), are saved as raw bytes but contain `long` (8 bytes on Linux, 4 on Windows/original), `GateData` also a pointer. Making them `int32_t` makes saves portable but breaks existing Linux saves; needs a decision (or a versioned save format) |
 
 ---

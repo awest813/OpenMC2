@@ -807,6 +807,7 @@ void __stdcall GetGameOSEnvironment( const char* CommandLine )
 
 	
 	Environment.screenWidth = 800;
+	Environment.swapInterval = 1;
 	Environment.screenHeight = 600;
 }
 

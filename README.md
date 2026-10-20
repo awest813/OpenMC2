@@ -30,6 +30,14 @@ This project has 0% LLM code and AIs (such as Claude, ChatGPT and other LLMs) ar
 * Editor?
 * I am sure there is more
 
+### Display options
+The game keeps its aspect ratio when the window or screen has a different one (black bars on the
+sides or top/bottom). These `options.cfg` settings (in the `MechCommander2` block) have no menu yet:
+
+* `b StretchToFit = TRUE` stretches the picture to fill the window instead
+* `l VSync = 0` turns vsync off (`1` on, the default; `-1` adaptive)
+* `l MaxFrameRate = 144` caps the frame rate (`0`, the default, means no cap)
+
 ### Licensing
 * Original game was released under Shared Source Limited Permission License (please refer to EULA.txt)
 * My code is licenced under GPL v.3 (see license.txt)

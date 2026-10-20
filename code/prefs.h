@@ -62,6 +62,11 @@ public:
 	bool	saveTranscripts;
 	bool	tutorials;
 
+	// display (options.cfg only, no UI yet)
+	bool	stretchToFit;	// stretch the game's screen to the window instead of keeping its aspect ratio
+	long	vsync;			// 0 = off, 1 = on, -1 = adaptive
+	long	maxFrameRate;	// frame rate cap, 0 = none
+
 #if 0
 	long FilterState;
 	long TERRAIN_TXM_SIZE;

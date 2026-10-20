@@ -171,3 +171,30 @@ TEST_CASE("Input: mouse motion and wheel accumulate over all events of a frame")
     CHECK(dx == 0);
     CHECK(wheel == 0);
 }
+
+TEST_CASE("Input: mouse position and deltas are in the game's coordinates when the screen is pillarboxed")
+{
+    // game at 800x600 shown in a 1920x1080 drawable: viewport x 240..1680 (no window in tests, so window
+    // coordinates equal drawable pixels)
+    Environment.screenWidth = 800;
+    Environment.screenHeight = 600;
+    Environment.drawableWidth = 1920;
+    Environment.drawableHeight = 1080;
+    Environment.stretchToWindow = false;
+
+    input::beginUpdateMouseState();
+    SDL_Event e;
+    memset(&e, 0, sizeof(e));
+    e.type = SDL_MOUSEMOTION;
+    e.motion.x = 960; e.motion.y = 540; e.motion.xrel = 18; e.motion.yrel = 0;
+    input::handleMouseMotion(&e);
+
+    float x = 0.0f, y = 0.0f;
+    int dx = 0;
+    gos_GetMouseInfo(&x, &y, &dx, 0, 0, 0);
+    CHECK(x == doctest::Approx(0.5f));
+    CHECK(y == doctest::Approx(0.5f));
+    CHECK(dx == 10); // 18 drawable pixels * 800/1440
+
+    Environment.screenWidth = Environment.screenHeight = 0;
+}

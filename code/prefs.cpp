@@ -77,6 +77,10 @@ CPrefs::CPrefs() {
 	for (int i = 0; i < 10; i++ )
 		unitName[i][0] = 0;
 
+	stretchToFit = false;
+	vsync = 1;
+	maxFrameRate = 0;
+
 #if 0
 	FilterState = gos_FilterNone;
 	TERRAIN_TXM_SIZE = 64;
@@ -273,6 +277,16 @@ int CPrefs::load( const char* pFileName ) {
 			if ( result != NO_ERR )
 				tutorials = true;
 
+			result = prefsFile->readIdBoolean( "StretchToFit", stretchToFit );
+			if ( result != NO_ERR )
+				stretchToFit = false;
+			result = prefsFile->readIdLong( "VSync", vsync );
+			if ( result != NO_ERR || vsync < -1 || vsync > 1 )
+				vsync = 1;
+			result = prefsFile->readIdLong( "MaxFrameRate", maxFrameRate );
+			if ( result != NO_ERR || maxFrameRate < 0 )
+				maxFrameRate = 0;
+
 		}
 
 	}
@@ -335,6 +349,9 @@ int CPrefs::save() {
 			result = prefsFile->writeIdLong("DisplayNumber",displayNumber);
 			result = prefsFile->writeIdLong("Brightness",gammaLevel);
 			result = prefsFile->writeIdBoolean( "useLeftRightMouseProfile", useLeftRightMouseProfile );
+			result = prefsFile->writeIdBoolean( "StretchToFit", stretchToFit );
+			result = prefsFile->writeIdLong( "VSync", vsync );
+			result = prefsFile->writeIdLong( "MaxFrameRate", maxFrameRate );
 			char blockName[64];
 			for ( int i = 0; i < 10; i++ )
 			{	
@@ -380,6 +397,10 @@ int CPrefs::save() {
 }
 
 int CPrefs::applyPrefs(bool applyRes) {
+	Environment.stretchToWindow = stretchToFit;
+	Environment.swapInterval = (int)vsync;
+	Environment.maxFrameRate = (int)maxFrameRate;
+
 	if (soundSystem) {
 		/*soundSystem doesn't seem to do anything*/
 		soundSystem->setDigitalMasterVolume(this->DigitalMasterVolume);

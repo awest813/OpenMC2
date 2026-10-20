@@ -238,6 +238,12 @@ typedef struct
 	int		screenHeight;			// 480
 	int		drawableWidth;			// 640
 	int		drawableHeight;			// 480
+//
+// Presentation (set by the application, applied every frame)
+//
+	bool	stretchToWindow;		// false: keep the aspect ratio (black bars), true: stretch to fill the window
+	int		swapInterval;			// vsync: 0 = off, 1 = on, -1 = adaptive (falls back to on)
+	int		maxFrameRate;			// frame rate cap in frames per second, 0 = no cap
 
 	int		bitDepth;				// 16 or 32
 	int		FullScreenDevice;		// 0=Primary, 1=2nd video card (ie: 3Dfx) etc...

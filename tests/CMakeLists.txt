@@ -9,6 +9,7 @@ set(TEST_SOURCES
     test_strings.cpp
     test_struct_layout.cpp
     test_timing.cpp
+    test_viewport.cpp
     test_stuff.cpp
     )
 
